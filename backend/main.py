@@ -3,8 +3,20 @@ from pydantic import BaseModel
 from typing import List
 import numpy as np
 from alg import conflict_free_coloring_alg
+from fastapi.middleware.cors import CORSMiddleware
+
+
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Replace with your frontend's URL
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 # Define a Pydantic model for the incoming JSON
 class Point(BaseModel):
