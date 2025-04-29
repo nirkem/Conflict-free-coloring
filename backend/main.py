@@ -20,9 +20,6 @@ class GraphResponse(BaseModel):
     colors: List[int]
     num_colors: int 
 
-# Include routes from the app folder
-app.include_router(router)
-
 def conflict_free_coloring(points_json):
     """
     Transforms the JSON input into a NumPy array, calls conflict_free_coloring_alg,
