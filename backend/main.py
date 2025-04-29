@@ -8,35 +8,51 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from app.routes import router
+from alg import conflict_free_coloring_alg
 
 app = FastAPI()
-# Include routes from the app folder
-app.include_router(router)
 
-# Simple data model to represent the graph structure
+# Define a Pydantic model for the incoming JSON
+class Point(BaseModel):
+    x: float
+    y: float
+    color: int
+    
+class PointsRequest(BaseModel):
+    points: List[Point]
+
 class GraphResponse(BaseModel):
     nodes: List[int]
     colors: List[int]
-    num_colors: int
+    num_colors: int 
 
-@app.get("/generate-graph")
-def generate_graph(n: int = 5):
-    """Generates a graph with no edges, just nodes."""
-    graph = nx.gnp_random_graph(n, 0)  # Generates a graph with n nodes and 0 edges
-    nodes = list(graph.nodes)
-    return {"nodes": nodes}
+# Include routes from the app folder
+app.include_router(router)
 
-def conflict_free_coloring(graph):
-    """Simple random coloring logic for now - replace with your CF coloring algorithm."""
-    nodes = list(graph.nodes)
-    # Generate a random color (just for example) for each node
-    colors = [random.randint(1, 5) for _ in nodes]  # Replace this with your CF algorithm
-    num_colors = len(set(colors))  # Count of unique colors used
-    return colors, num_colors
+def conflict_free_coloring(points_json):
+    """
+    Transforms the JSON input into a NumPy array, calls conflict_free_coloring_alg,
+    and updates the JSON with the assigned colors.
+    """
+    # Step 1: Transform JSON to NumPy array
+    points_array = np.array([[point.x, point.y] for point in points_json])
 
-@app.get("/generate-conflict-free-coloring")
-def generate_conflict_free_coloring(n: int = 5):
-    """Generates the CF coloring for the graph."""
-    graph = nx.gnp_random_graph(n, 0)
-    colors, num_colors = conflict_free_coloring(graph)
-    return GraphResponse(nodes=list(graph.nodes), colors=colors, num_colors=num_colors)
+    # Step 2: Call conflict_free_coloring_alg to get the coloring
+    coloring = conflict_free_coloring_alg(points_array)  # Returns a dict like {0: 0, 1: 2, ...}
+
+    # Step 3: Update the JSON with the assigned colors
+    for i, point in enumerate(points_json):
+        point.color = coloring[i]  # Update the color field in the JSON
+
+    # Step 4: Return the updated JSON
+    return points_json
+
+@app.post("/generate-conflict-free-coloring")
+def generate_conflict_free_coloring(request: PointsRequest):
+    """Generates the CF coloring for the graph based on input points."""
+    points = request.points
+
+    # Call conflict_free_coloring to process the points and update their colors
+    updated_points = conflict_free_coloring(points)
+
+    return {"points": [point.dict() for point in updated_points]}
