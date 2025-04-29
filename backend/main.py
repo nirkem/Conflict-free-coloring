@@ -1,12 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import random
-import networkx as nx
 from typing import List
-from scipy.spatial import Delaunay
 import numpy as np
-import matplotlib.pyplot as plt
-from collections import defaultdict
 from app.routes import router
 from alg import conflict_free_coloring_alg
 
