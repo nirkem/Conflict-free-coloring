@@ -24,37 +24,23 @@ def conflict_free_coloring(points_json):
     """
     Transforms the JSON input into a NumPy array, calls conflict_free_coloring_alg,
     and updates the JSON with the assigned colors.
-    """
-    
-    print("Starting conflict_free_coloring function with points:", points_json)
-    
-    # Step 1: Transform JSON to a list of lists
+    """   
+     
     array = [[point.x, point.y] for point in points_json]
-    print("Intermediate array (list of lists):", array)
-
-    # Step 2: Convert the list of lists to a NumPy array
     points_array = np.array(array)
-    print("Points array (NumPy):", points_array)
     
-    # Step 2: Call conflict_free_coloring_alg to get the coloring
-    coloring = conflict_free_coloring_alg(points_array)  # Returns a dict like {0: 0, 1: 2, ...}
+    coloring = conflict_free_coloring_alg(points_array)  
 
-    # Step 3: Update the JSON with the assigned colors
     for i, point in enumerate(points_json):
-        point.color = coloring[i]  # Update the color field in the JSON
+        point.color = coloring[i]  
 
-    # Step 4: Return the updated JSON
     return points_json
 
 @app.post("/generate-conflict-free-coloring")
 def generate_conflict_free_coloring(request: PointsRequest):
     """Generates the CF coloring for the graph based on input points."""
-    print("Received request:", request)
-    points = request.points
-    print("Points before processing:", points)
 
-    # Call conflict_free_coloring to process the points and update their colors
+    points = request.points
     updated_points = conflict_free_coloring(points)
-    print("Points after processing:", updated_points)
 
     return {"points": [point.dict() for point in updated_points]}
