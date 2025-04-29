@@ -30,59 +30,62 @@ def get_most_common_color(coloring: dict) -> int:
 
 # Step 1: Generate some random 2D points
 initial_points = np.array([
-    [0, 0],   # 0
-    [10, 0],   # 1
-    [10, 10],   # 2
-    [0, 10],   # 3
-    [5, 5], # 4 center
-    [2, 5], # 5 inner left
-    [8, 5], # 6 inner right
-    [5, 2], # 7 inner bottom
-    [5, 8], # 8 inner top
-])  # 10 points in the unit square
+    [0.2, 0.2],   
+    [0.1, 0.1],   
+    [0, 0.1],   
+    [0.5, 0.5], 
+    [0.2, 0.5], 
+    [0.8, 0.5], 
+    [0.5, 0.2], 
+    [0.5, 0.8], 
+])  
 
-# copy initial_points to points
-points = initial_points.copy()
-current_indices = list(range(len(points)))
+def conflict_free_coloring_alg(initial_points):
+    # copy initial_points to points
+    points = initial_points.copy()
+    current_indices = list(range(len(points)))
 
-current_color = 0
-CF_coloring = {i: 0 for i in range(len(points))}
+    current_color = 0
+    CF_coloring = {i: 0 for i in range(len(points))}
 
-# Start the loop
-while len(points) > 0:
-    
-    if len(points) < 4:
+    # Start the loop
+    while len(points) > 0:
+        
+        if len(points) < 4:
+            for i in range(len(points)):
+                global_idx = current_indices[i]
+                CF_coloring[global_idx] = current_color
+                current_color += 1
+            break
+        
+        # generate trices by Delaunay triangulation
+        trices = Delaunay(points)
+
+        # build graph
+        G = get_graph(points, trices)
+                
+        # color the graph
+        coloring = nx.coloring.greedy_color(G, strategy="largest_first")
+        
+        # Find the color group with the most nodes
+        most_common_color = get_most_common_color(coloring)
+        
+        i = 0
+        points_to_delete = []
         for i in range(len(points)):
             global_idx = current_indices[i]
-            CF_coloring[global_idx] = current_color
-            current_color += 1
-        break
-    
-    # generate trices by Delaunay triangulation
-    trices = Delaunay(points)
+            if coloring[i] == most_common_color:
+                CF_coloring[global_idx] = current_color
+                points_to_delete.append(i)
+        
+        # remove the points from the list
+        points = np.delete(points, points_to_delete, axis=0)
+        current_indices = [idx for j, idx in enumerate(current_indices) if j not in points_to_delete]
+        current_color += 1
+        
+    return CF_coloring
 
-    # build graph
-    G = get_graph(points, trices)
-            
-    # color the graph
-    coloring = nx.coloring.greedy_color(G, strategy="largest_first")
-    
-    # Find the color group with the most nodes
-    most_common_color = get_most_common_color(coloring)
-    
-    i = 0
-    points_to_delete = []
-    for i in range(len(points)):
-        global_idx = current_indices[i]
-        if coloring[i] == most_common_color:
-            CF_coloring[global_idx] = current_color
-            points_to_delete.append(i)
-    
-    # remove the points from the list
-    points = np.delete(points, points_to_delete, axis=0)
-    current_indices = [idx for j, idx in enumerate(current_indices) if j not in points_to_delete]
-    current_color += 1
-
+CF_coloring = conflict_free_coloring_alg(initial_points)
 
 def plot_the_graph(points, CF_coloring):
     plt.figure(figsize=(6, 6))
