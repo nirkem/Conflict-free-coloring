@@ -1,0 +1,9 @@
+ok let me explain what i want to build.
+i want a web page for conflict free coloring. 
+first, we will ask the user for a number n (that will be the number of nodes in a graph), then we will generate a random graph (inside the unit rectangle) with n nodes.
+so i want a no edges graph at first, just n nodes.
+then we will give the user an option to press on a button "Generate conflict free coloring for the graph" on the backend we will use an algorithm in python, i already have it...
+it will return a the same graph, but the nodes will be colored by the CF coloring we generated.
+we will also node out the num of colors required for the coloring.
+
+then we will give the user an option to draw a circle on the graph and inside the circle we will highlight a node
