@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 import numpy as np
-from app.routes import router
 from alg import conflict_free_coloring_alg
 
 app = FastAPI()
