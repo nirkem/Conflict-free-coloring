@@ -29,7 +29,7 @@ def get_most_common_color(coloring: dict) -> int:
     return most_common_color
 
 # Step 1: Generate some random 2D points
-initial_points = np.array([
+test_points = np.array([
     [0.2, 0.2],   
     [0.1, 0.1],   
     [0, 0.1],   
@@ -85,42 +85,42 @@ def conflict_free_coloring_alg(initial_points):
         
     return CF_coloring
 
-CF_coloring = conflict_free_coloring_alg(initial_points)
+# CF_coloring = conflict_free_coloring_alg(initial_points)
 
-a = 0
+# a = 0
 
-def plot_the_graph(points, CF_coloring):
-    plt.figure(figsize=(6, 6))
+# def plot_the_graph(points, CF_coloring):
+#     plt.figure(figsize=(6, 6))
 
-    # generate trices by Delaunay triangulation
-    trices = Delaunay(points)
+#     # generate trices by Delaunay triangulation
+#     trices = Delaunay(points)
 
-    # build graph
-    G = get_graph(points, trices)
+#     # build graph
+#     G = get_graph(points, trices)
 
-    # Edges from Delaunay
-    for u, v in G.edges():
-        x = [points[u][0], points[v][0]]
-        y = [points[u][1], points[v][1]]
-        plt.plot(x, y, color='gray')
+#     # Edges from Delaunay
+#     for u, v in G.edges():
+#         x = [points[u][0], points[v][0]]
+#         y = [points[u][1], points[v][1]]
+#         plt.plot(x, y, color='gray')
 
-    # generate 10 colors
-    cmap = plt.get_cmap('tab10')
-    colors = [cmap(i) for i in range(10)]
-    # color the vertices with the CF_coloring
-    for i, (x, y) in enumerate(points):
-        color = colors[CF_coloring[i]]
-        plt.plot(x, y, 'o', color=color)
-        plt.text(x + 0.2, y + 0.2, str(i), fontsize=9, color='black')
+#     # generate 10 colors
+#     cmap = plt.get_cmap('tab10')
+#     colors = [cmap(i) for i in range(10)]
+#     # color the vertices with the CF_coloring
+#     for i, (x, y) in enumerate(points):
+#         color = colors[CF_coloring[i]]
+#         plt.plot(x, y, 'o', color=color)
+#         plt.text(x + 0.2, y + 0.2, str(i), fontsize=9, color='black')
 
-    plt.title("CF-Coloring of Delaunay Graph")
-    plt.gca().set_aspect('equal')
-    plt.grid(True)
-    plt.show()
+#     plt.title("CF-Coloring of Delaunay Graph")
+#     plt.gca().set_aspect('equal')
+#     plt.grid(True)
+#     plt.show()
 
 
-# Im here for the Plot
-plot_the_graph(initial_points, CF_coloring)
+# # Im here for the Plot
+# plot_the_graph(initial_points, CF_coloring)
 
 
 
