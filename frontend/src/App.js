@@ -11,20 +11,6 @@ export const generateConflictFreeColoring = async (points) => {
       color: 0
     }))
   };
-
-  pointsData = {
-    points: [
-      { x: 0, y: 0, color: 0 },
-      { x: 1, y: 0, color: 0 },
-      { x: 1, y: 1, color: 0 },
-      { x: 0, y: 1, color: 0 },
-      { x: 0.5, y: 0.5, color: 0 },
-      { x: 0.2, y: 0.5, color: 0 },
-      { x: 0.8, y: 0.5, color: 0 },
-      { x: 0.5, y: 0.2, color: 0 },
-      { x: 0.5, y: 0.8, color: 0 }
-    ]
-  };
   
   try {
     // Send POST request to the backend
