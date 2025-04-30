@@ -5,8 +5,6 @@ import numpy as np
 from alg import conflict_free_coloring_alg
 from fastapi.middleware.cors import CORSMiddleware
 
-
-
 app = FastAPI()
 
 # Add CORS middleware
