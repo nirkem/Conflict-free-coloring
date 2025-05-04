@@ -1,14 +1,14 @@
 import { generateConflictFreeColoring } from "./App.js";
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-// Set the canvas coordinate system to range from -1.5 to 1.5
+// Set the canvas coordinate system to range from 0 to 100 on both axes
 ctx.setTransform(
-	canvas.width / 3,
+	canvas.width / 100, // Scale x-axis to 100 units
 	0,
 	0,
-	-canvas.height / 3,
-	canvas.width / 2,
-	canvas.height / 2
+	-canvas.height / 100, // Scale y-axis to 100 units (negative to flip y-axis)
+	0,
+	canvas.height // Translate origin to bottom-left corner
 );
 
 let points = [];
@@ -22,22 +22,22 @@ window.handleDraw = handleDraw;
 window.handleColoring = handleColoring;
 window.toggleCircleMode = toggleCircleMode;
 
-function drawGrid(spacing = 0.5) {
-	ctx.clearRect(-1.5, -1.5, 3, 3); // Clear the canvas in the new coordinate system
+function drawGrid(spacing = 10) {
+	ctx.clearRect(0, 0, 100, 100); // Clear the canvas in the new coordinate system
 	ctx.strokeStyle = "#e0e0e0";
-	ctx.lineWidth = 0.01;
+	ctx.lineWidth = 0.5;
 
-	for (let x = -1.5; x <= 1.5; x += spacing) {
+	for (let x = 0; x <= 100; x += spacing) {
 		ctx.beginPath();
-		ctx.moveTo(x, -1.5);
-		ctx.lineTo(x, 1.5);
+		ctx.moveTo(x, 0);
+		ctx.lineTo(x, 100);
 		ctx.stroke();
 	}
 
-	for (let y = -1.5; y <= 1.5; y += spacing) {
+	for (let y = 0; y <= 100; y += spacing) {
 		ctx.beginPath();
-		ctx.moveTo(-1.5, y);
-		ctx.lineTo(1.5, y);
+		ctx.moveTo(0, y);
+		ctx.lineTo(100, y);
 		ctx.stroke();
 	}
 }
@@ -45,18 +45,22 @@ function drawGrid(spacing = 0.5) {
 function drawRandomPoints(n) {
 	points = [];
 	for (let i = 0; i < n; i++) {
-		// Generate random numbers between -1 and 1 with 1 decimal place
-		const x = +(Math.random() * 2 - 1).toFixed(1); // Random number between -1 and 1
-		const y = +(Math.random() * 2 - 1).toFixed(1); // Random number between -1 and 1
+		// Generate random numbers between 0 and 100
+		const x = +(Math.random() * 98).toFixed(1) + 1; // Random number between 0 and 100
+		const y = +(Math.random() * 98).toFixed(1) + 1; // Random number between 0 and 100
 		points.push({ x, y, color: 0 });
-		drawPoint(x, y);
+		drawPoint(x, y, "#000000", n); // Pass the total number of points
 	}
 	updateJsonViewer();
 }
 
-function drawPoint(x, y, color = "#000000") {
+function drawPoint(x, y, color = "#000000", totalPoints = 100) {
+	const maxRadius = 1.5; // Smaller maximum radius for fewer points
+	const minRadius = 0.3; // Smaller minimum radius for many points
+	const radius = Math.max(minRadius, maxRadius - totalPoints / 250); // Adjust radius dynamically
+
 	ctx.beginPath();
-	ctx.arc(x, y, 0.05, 0, Math.PI * 2); // Radius is now in canvas units
+	ctx.arc(x, y, radius, 0, Math.PI * 2); // Use the calculated radius
 	ctx.fillStyle = color;
 	ctx.fill();
 }
@@ -66,8 +70,12 @@ function handleDraw() {
 	if (!isNaN(count) && count > 0) {
 		drawGrid();
 		drawRandomPoints(count);
+
+		// Enable the "Generate conflict-free coloring" button
+		const generateButton = document.getElementById("generateColoringButton");
+		generateButton.disabled = false;
 	} else {
-		alert("Please enter a valid positive number.");
+		alert("Please enter a valid number of points.");
 	}
 }
 
@@ -76,18 +84,27 @@ async function handleColoring() {
 		console.log("Sending points to backend:", points);
 		const coloredPoints = await generateConflictFreeColoring(points);
 
-		console.log("Received colored points from backend:", coloredPoints.points);
+		console.log("Received colored points from backend:", coloredPoints);
 
 		drawGrid();
 		coloredPoints.forEach((p, i) => {
 			points[i].x = +p.x.toFixed(1); // Ensure 1 decimal place
 			points[i].y = +p.y.toFixed(1); // Ensure 1 decimal place
-			points[i].color = p.color;
-			const colorIndex = p.color % 10;
-			drawPoint(points[i].x, points[i].y, colorFromPalette(colorIndex));
+			points[i].color = p.color; // Assign the color, including 0
+			const { code } = colorFromPalette(p.color);
+			drawPoint(points[i].x, points[i].y, code, points.length); // Pass the total number of points
 		});
 
 		updateJsonViewer();
+
+		// Update the number of colors
+		const uniqueColors = new Set(points.map((p) => p.color));
+		document.getElementById("colorCountOutput").textContent = uniqueColors.size;
+
+		// Enable the "Draw Circle" button
+		const drawCircleButton = document.getElementById("drawCircleButton");
+		drawCircleButton.disabled = false;
+
 		console.log("Assigned colors:", points);
 	} catch (err) {
 		console.error("Error from backend:", err);
@@ -96,13 +113,37 @@ async function handleColoring() {
 }
 
 function updateJsonViewer() {
-	const viewer = document.getElementById("jsonViewer");
-	const displayPoints = points.map((p) => ({
-		x: +p.x.toFixed(1), // Ensure 1 decimal place
-		y: +p.y.toFixed(1), // Ensure 1 decimal place
-		color: p.color,
-	}));
-	viewer.textContent = JSON.stringify({ points: displayPoints }, null, 2);
+	const tableBody = document.getElementById("pointsTableBody");
+	tableBody.innerHTML = ""; // Clear existing rows
+
+	points.forEach((point, index) => {
+		const row = document.createElement("tr");
+
+		// Add index
+		const indexCell = document.createElement("td");
+		indexCell.textContent = index + 1;
+		row.appendChild(indexCell);
+
+		// Add X coordinate
+		const xCell = document.createElement("td");
+		xCell.textContent = point.x.toFixed(1);
+		row.appendChild(xCell);
+
+		// Add Y coordinate
+		const yCell = document.createElement("td");
+		yCell.textContent = point.y.toFixed(1);
+		row.appendChild(yCell);
+
+		// Add Color
+		const colorCell = document.createElement("td");
+		const { code, name } = colorFromPalette(point.color); // Get the color code and name
+		colorCell.style.backgroundColor = code; // Set the background color
+		colorCell.textContent = name; // Display the color name
+		colorCell.style.color = "#ffffff"; // Ensure text is visible on dark backgrounds
+		row.appendChild(colorCell);
+
+		tableBody.appendChild(row);
+	});
 }
 
 function toggleCircleMode() {
@@ -114,7 +155,7 @@ function toggleCircleMode() {
 
 	if (!isCircleMode) {
 		drawGrid();
-		points.forEach((p) => drawPoint(p.x, p.y));
+		points.forEach((p) => drawPoint(p.x, p.y, "#000000", points.length));
 	}
 }
 
@@ -122,8 +163,8 @@ function drawCirclePreview(center, radius) {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	drawGrid();
 	points.forEach((p) => {
-		const color = p.color === 0 ? "#000000" : colorFromPalette(p.color);
-		drawPoint(p.x, p.y, color);
+		const color = p.color === 0 ? "#000000" : colorFromPalette(p.color).code;
+		drawPoint(p.x, p.y, color, points.length);
 	});
 
 	if (center && radius) {
@@ -139,18 +180,40 @@ function drawCirclePreview(center, radius) {
 
 function colorFromPalette(colorNumber) {
 	const colorPalette = [
-		"#FF0000", // Red
-		"#00FF00", // Green
-		"#0000FF", // Blue
-		"#FFFF00", // Yellow
-		"#FF00FF", // Magenta
-		"#00FFFF", // Cyan
-		"#800000", // Maroon
-		"#808000", // Olive
-		"#008080", // Teal
-		"#800080", // Purple
+		{ code: "#000000", name: "Black" }, // Black for color 0
+		{ code: "#FF0000", name: "Red" }, // Red
+		{ code: "#00FF00", name: "Green" }, // Green
+		{ code: "#0000FF", name: "Blue" }, // Blue
+		{ code: "#FFFF00", name: "Yellow" }, // Yellow
+		{ code: "#FF00FF", name: "Magenta" }, // Magenta
+		{ code: "#00FFFF", name: "Cyan" }, // Cyan
+		{ code: "#800000", name: "Maroon" }, // Maroon
+		{ code: "#808000", name: "Olive" }, // Olive
+		{ code: "#008080", name: "Teal" }, // Teal
+		{ code: "#800080", name: "Purple" }, // Purple
+		{ code: "#FFA500", name: "Orange" }, // Orange
+		{ code: "#A52A2A", name: "Brown" }, // Brown
+		{ code: "#8A2BE2", name: "Blue Violet" }, // Blue Violet
+		{ code: "#5F9EA0", name: "Cadet Blue" }, // Cadet Blue
+		{ code: "#7FFF00", name: "Chartreuse" }, // Chartreuse
+		{ code: "#D2691E", name: "Chocolate" }, // Chocolate
+		{ code: "#FF7F50", name: "Coral" }, // Coral
+		{ code: "#6495ED", name: "Cornflower Blue" }, // Cornflower Blue
+		{ code: "#DC143C", name: "Crimson" }, // Crimson
+		{ code: "#00CED1", name: "Dark Turquoise" }, // Dark Turquoise
+		{ code: "#9400D3", name: "Dark Violet" }, // Dark Violet
+		{ code: "#FF1493", name: "Deep Pink" }, // Deep Pink
+		{ code: "#00BFFF", name: "Deep Sky Blue" }, // Deep Sky Blue
+		{ code: "#696969", name: "Dim Gray" }, // Dim Gray
+		{ code: "#1E90FF", name: "Dodger Blue" }, // Dodger Blue
+		{ code: "#B22222", name: "Firebrick" }, // Firebrick
+		{ code: "#228B22", name: "Forest Green" }, // Forest Green
+		{ code: "#FF69B4", name: "Hot Pink" }, // Hot Pink
+		{ code: "#CD5C5C", name: "Indian Red" }, // Indian Red
 	];
-	return colorPalette[(colorNumber - 1) % colorPalette.length];
+
+	const color = colorPalette[colorNumber % colorPalette.length];
+	return color || { code: "N/A", name: "N/A" }; // Fallback for invalid colors
 }
 
 canvas.addEventListener("mousedown", (event) => {

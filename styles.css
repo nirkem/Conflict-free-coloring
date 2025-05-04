@@ -1,106 +1,226 @@
+/* Global reset */
+html,
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f4f6f8;
-    margin: 0;
-    padding: 20px;
-    color: #333;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    height: 100vh;
-    box-sizing: border-box;
-  }
-  
-  .top-controls {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-    align-items: center;
-  }
-  
-  .canvas-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
-  
-  .right-panel {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 20px;
-  }
-  
-  .bottom-controls {
-    margin-top: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .circle-result {
-    display: flex;
-    flex-direction: column;
-    opacity: 1;
-    transition: opacity 0.3s ease;
-  }
-  
-  .circle-result label {
-    text-align: center;
-    margin-bottom: 4px;
-    white-space: pre-line;
-  }
-  
-  .circle-result input {
-    padding: 6px 10px;
-    border-radius: 6px;
-    border: 1px solid #aaa;
-    width: 220px;
-    text-align: center;
-  }
-  
-  .faded {
-    opacity: 0.4;
-    pointer-events: none;
-  }
-  
-  input[type="number"] {
-    width: 120px;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-  }
-  
-  button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 8px;
-    background-color: #2e86de;
-    color: white;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: background-color 0.2s ease;
-  }
-  
-  button:hover {
-    background-color: #1e5bb8;
-  }
-  
-  canvas {
-    border: 2px solid #ccc;
-    border-radius: 8px;
-    background-color: white;
-  }
-  
-  #jsonViewer {
-    margin-top: 15px;
-    background: #fff;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    padding: 10px;
-    width: 400px;
-    height: 200px;
-    overflow-y: auto;
-    font-family: monospace;
-    white-space: pre-wrap;
-  }
+	height: 100%; /* Ensure full height */
+	margin: 0; /* Remove default margin */
+	padding: 0; /* Remove default padding */
+	overflow: hidden; /* Prevent scrolling */
+}
+
+* {
+	box-sizing: border-box; /* Include padding and borders in dimensions */
+}
+
+/* General container layout */
+.container {
+	display: flex;
+	height: calc(100vh - 60px); /* Subtract header height */
+	overflow: hidden; /* Prevent scrolling */
+}
+
+/* Header */
+header {
+	text-align: center;
+	height: 60px; /* Fixed height */
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: #ffffff; /* Optional: Add a background color */
+	border-bottom: 1px solid #ccc; /* Optional: Add a bottom border */
+}
+
+header h1 {
+	font-size: 36px; /* Large font size */
+	font-weight: bold; /* Bold text */
+	color: #000000; /* Black color */
+	font-family: "Georgia", "Times New Roman", serif; /* Elegant font */
+	margin: 0; /* Remove default margin */
+}
+
+/* Left panel: Canvas */
+.left-panel {
+	flex: 2; /* Take 2/3 of the width */
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: #f9f9f9;
+	height: 100%; /* Ensure it fills the container */
+}
+
+/* Right panel: Controls */
+.right-panel {
+	flex: 1; /* Take 1/3 of the width */
+	display: flex;
+	flex-direction: column;
+	padding: 20px;
+	background-color: #ffffff;
+	border-left: 1px solid #ccc;
+	overflow-y: auto; /* Allow scrolling only within the right panel if needed */
+	height: 100%; /* Ensure it fills the container */
+}
+
+/* Top controls: Number of points */
+.top-controls {
+	margin-bottom: 20px;
+	display: flex;
+	flex-direction: column;
+	align-items: center; /* Center the button */
+}
+
+.input-row {
+	display: flex;
+	align-items: center; /* Align input and headline vertically */
+	justify-content: center; /* Center the row horizontally */
+	width: 100%; /* Ensure the row spans the full width */
+	margin-bottom: 10px; /* Add spacing below the row */
+}
+
+.input-row h2 {
+	margin: 0;
+	margin-right: 10px; /* Add spacing between the headline and input */
+	font-size: 20px; /* Adjust font size if needed */
+}
+
+.input-row input {
+	flex: 1; /* Allow the input to grow and fill available space */
+	padding: 5px;
+	font-size: 16px;
+}
+
+.top-controls button {
+	width: 100%; /* Make the button span the full width of the row above */
+	padding: 10px;
+	font-size: 16px;
+	background-color: #007bff;
+	color: #ffffff;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+}
+
+.top-controls button:hover {
+	background-color: #0056b3;
+}
+
+/* JSON Viewer */
+.json-viewer {
+	margin-bottom: 20px;
+	padding: 10px;
+	background-color: #f4f4f4;
+	border: 1px solid #ccc;
+	max-height: 200px; /* Limit height to avoid overflow */
+	overflow-y: auto; /* Add scrolling if content exceeds height */
+	font-family: Arial, sans-serif;
+	font-size: 14px;
+}
+
+.json-viewer table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.json-viewer th,
+.json-viewer td {
+	border: 1px solid #ccc;
+	padding: 8px;
+	text-align: center;
+}
+
+.json-viewer th {
+	background-color: #007bff;
+	color: white;
+	font-weight: bold;
+}
+
+.json-viewer tbody tr:nth-child(even) {
+	background-color: #f9f9f9;
+}
+
+/* Bottom controls: Generate coloring */
+.bottom-controls {
+	margin-bottom: 20px;
+}
+
+.bottom-controls button {
+	margin-top: 10px; /* Add spacing above the button */
+}
+
+/* Shared button styling */
+button {
+	width: 100%; /* Make the button span the full width of its container */
+	padding: 10px;
+	font-size: 16px;
+	background-color: #007bff;
+	color: #ffffff;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+}
+
+button:hover {
+	background-color: #0056b3;
+}
+
+button:disabled {
+	background-color: #cccccc; /* Gray background for disabled button */
+	cursor: not-allowed; /* Show "not-allowed" cursor */
+	color: #666666; /* Dimmed text color */
+}
+
+/* Circle controls */
+.circle-controls {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+.circle-controls label {
+	margin-bottom: 5px;
+}
+
+.circle-controls input {
+	margin-bottom: 10px;
+	padding: 5px;
+	width: 100%;
+}
+
+.circle-controls button {
+	padding: 5px 10px;
+	width: 100%;
+}
+
+/* Circle output */
+.circle-output {
+	display: flex;
+	align-items: center; /* Align input and label vertically */
+	gap: 10px; /* Add spacing between the label and input */
+}
+
+.circle-output input {
+	width: 50px; /* Adjust the width of the input field */
+	text-align: center; /* Center the text inside the input */
+	padding: 5px;
+	font-size: 14px;
+}
+
+/* Color count */
+.color-count {
+	margin-top: 10px; /* Add spacing above the section */
+	display: flex;
+	align-items: center; /* Align label and output vertically */
+	justify-content: space-between; /* Space out the label and output */
+}
+
+.color-count label {
+	font-size: 16px;
+	font-weight: bold;
+	color: #333;
+}
+
+.color-count output {
+	font-size: 16px;
+	font-weight: bold;
+	color: #007bff; /* Blue color for the output */
+}

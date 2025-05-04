@@ -76,3 +76,7 @@ sendPointsToBackend();
 
 **backend api docs**
 https://conflict-free-coloring.onrender.com/docs#/
+
+**Running the server**
+Run the following command inside backend folder:
+uvicorn main:app --reload
