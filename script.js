@@ -1,6 +1,8 @@
 import { generateConflictFreeColoring } from "./App.js";
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+
 // Set the canvas coordinate system to range from 0 to 100 on both axes
 ctx.setTransform(
 	canvas.width / 100, // Scale x-axis to 100 units
@@ -12,10 +14,8 @@ ctx.setTransform(
 );
 
 let points = [];
-let isCircleMode = false;
-let circle = null;
-let isMouseDown = false;
-let circleStart = null;
+let isCircleMode = false; // Track whether the circle drawing mode is active
+let circleStart = null; // Store the starting point of the circle
 
 // Attach functions to the global window object
 window.handleDraw = handleDraw;
@@ -40,6 +40,138 @@ function drawGrid(spacing = 10) {
 		ctx.lineTo(100, y);
 		ctx.stroke();
 	}
+}
+
+function toggleCircleMode() {
+	isCircleMode = !isCircleMode; // Toggle the mode
+	const button = document.getElementById("drawCircleButton");
+	button.innerText = `Draw Circle (${isCircleMode ? "On" : "Off"})`;
+
+	if (isCircleMode) {
+		// Add mouse event listeners for drawing the circle
+		canvas.addEventListener("mousedown", startDrawingCircle);
+		canvas.addEventListener("mousemove", previewCircle);
+		canvas.addEventListener("mouseup", finishDrawingCircle);
+	} else {
+		// Remove mouse event listeners when turning off the mode
+		canvas.removeEventListener("mousedown", startDrawingCircle);
+		canvas.removeEventListener("mousemove", previewCircle);
+		canvas.removeEventListener("mouseup", finishDrawingCircle);
+
+		// Reset the canvas
+		drawGrid();
+		points.forEach((p) =>
+			drawPoint(p.x, p.y, colorFromPalette(p.color).code, points.length)
+		);
+	}
+}
+
+function startDrawingCircle(event) {
+	const rect = canvas.getBoundingClientRect();
+	const x = ((event.clientX - rect.left) / rect.width) * 100;
+	const y = 100 - ((event.clientY - rect.top) / rect.height) * 100; // Adjust for flipped y-axis
+	circleStart = { x, y }; // Save the starting point
+}
+
+function previewCircle(event) {
+	if (!circleStart) return;
+
+	const rect = canvas.getBoundingClientRect();
+	const x = ((event.clientX - rect.left) / rect.width) * 100;
+	const y = 100 - ((event.clientY - rect.top) / rect.height) * 100; // Adjust for flipped y-axis
+
+	const radius = Math.sqrt((x - circleStart.x) ** 2 + (y - circleStart.y) ** 2);
+
+	drawCirclePreview(circleStart, radius);
+}
+
+function finishDrawingCircle(event) {
+	if (!circleStart) return;
+
+	const rect = canvas.getBoundingClientRect();
+	const x = ((event.clientX - rect.left) / rect.width) * 100;
+	const y = 100 - ((event.clientY - rect.top) / rect.height) * 100; // Adjust for flipped y-axis
+
+	const radius = Math.sqrt((x - circleStart.x) ** 2 + (y - circleStart.y) ** 2);
+
+	// Finalize the circle
+	drawCirclePreview(circleStart, radius);
+
+	// Find and highlight the distinct point
+	const pointsInsideCircle = getPointsInsideCircle(circleStart, radius);
+	const distinctPoint = findDistinctPoint(pointsInsideCircle);
+
+	if (distinctPoint) {
+		highlightPoint(distinctPoint.x, distinctPoint.y);
+	}
+
+	// Reset the starting point
+	circleStart = null;
+}
+
+function drawCirclePreview(center, radius) {
+	ctx.clearRect(0, 0, 100, 100); // Clear the canvas
+	drawGrid(); // Redraw the grid
+	points.forEach((p) => {
+		const color = colorFromPalette(p.color).code;
+		drawPoint(p.x, p.y, color, points.length); // Redraw the points
+	});
+
+	if (center && radius) {
+		// Draw the circle
+		ctx.beginPath();
+		ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+		ctx.fillStyle = "rgba(0, 0, 0, 0.1)"; // Semi-transparent black fill
+		ctx.strokeStyle = "#000000"; // Black border color
+		ctx.lineWidth = 1; // Thinner border
+		ctx.fill();
+		ctx.stroke();
+	}
+}
+
+function getPointsInsideCircle(center, radius) {
+	return points.filter((point) => {
+		const distance = Math.sqrt(
+			(point.x - center.x) ** 2 + (point.y - center.y) ** 2
+		);
+		return distance <= radius;
+	});
+}
+
+function findDistinctPoint(pointsInsideCircle) {
+	const colorCounts = new Map();
+
+	// Count occurrences of each color
+	pointsInsideCircle.forEach((point) => {
+		colorCounts.set(point.color, (colorCounts.get(point.color) || 0) + 1);
+	});
+
+	// Find a point with a distinct color
+	for (const point of pointsInsideCircle) {
+		if (colorCounts.get(point.color) === 1) {
+			return point; // Return the first distinct point
+		}
+	}
+
+	return null; // No distinct point found
+}
+
+function highlightPoint(x, y) {
+  const highlightColor = "rgba(255, 215, 0, 0.5)"; // Semi-transparent yellow
+  const highlightRadius = 3; // Larger radius for the highlight
+
+  // Draw the highlight circle
+  ctx.beginPath();
+  ctx.arc(x, y, highlightRadius, 0, Math.PI * 2);
+  ctx.fillStyle = highlightColor;
+  ctx.fill();
+
+  // Redraw the original point on top of the highlight
+  const originalPoint = points.find((p) => p.x === x && p.y === y);
+  if (originalPoint) {
+    const color = colorFromPalette(originalPoint.color).code;
+    drawPoint(x, y, color, points.length);
+  }
 }
 
 function drawRandomPoints(n) {
@@ -146,38 +278,6 @@ function updateJsonViewer() {
 	});
 }
 
-function toggleCircleMode() {
-	isCircleMode = !isCircleMode;
-	const button = document.getElementById("drawCircleButton");
-	const resultBox = document.getElementById("circleResult");
-	button.innerText = `Draw Circle (${isCircleMode ? "On" : "Off"})`;
-	resultBox.classList.toggle("faded", !isCircleMode);
-
-	if (!isCircleMode) {
-		drawGrid();
-		points.forEach((p) => drawPoint(p.x, p.y, "#000000", points.length));
-	}
-}
-
-function drawCirclePreview(center, radius) {
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	drawGrid();
-	points.forEach((p) => {
-		const color = p.color === 0 ? "#000000" : colorFromPalette(p.color).code;
-		drawPoint(p.x, p.y, color, points.length);
-	});
-
-	if (center && radius) {
-		ctx.beginPath();
-		ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
-		ctx.fillStyle = "rgba(255, 87, 51, 0.2)";
-		ctx.strokeStyle = "#FF5733";
-		ctx.lineWidth = 2;
-		ctx.fill();
-		ctx.stroke();
-	}
-}
-
 function colorFromPalette(colorNumber) {
 	const colorPalette = [
 		{ code: "#000000", name: "Black" }, // Black for color 0
@@ -215,54 +315,6 @@ function colorFromPalette(colorNumber) {
 	const color = colorPalette[colorNumber % colorPalette.length];
 	return color || { code: "N/A", name: "N/A" }; // Fallback for invalid colors
 }
-
-canvas.addEventListener("mousedown", (event) => {
-	if (!isCircleMode) return;
-	isMouseDown = true;
-	const rect = canvas.getBoundingClientRect();
-	circleStart = {
-		x: event.clientX - rect.left,
-		y: event.clientY - rect.top,
-	};
-	circle = { center: { ...circleStart }, radius: 0 };
-});
-
-canvas.addEventListener("mousemove", (event) => {
-	if (!isMouseDown || !isCircleMode || !circleStart) return;
-	const rect = canvas.getBoundingClientRect();
-	const mouseX = event.clientX - rect.left;
-	const mouseY = event.clientY - rect.top;
-
-	const dx = mouseX - circleStart.x;
-	const dy = mouseY - circleStart.y;
-	circle.radius = Math.sqrt(dx * dx + dy * dy);
-
-	drawCirclePreview(circle.center, circle.radius);
-});
-
-canvas.addEventListener("mouseup", () => {
-	if (!isMouseDown || !isCircleMode || !circleStart) return;
-	isMouseDown = false;
-
-	const circleData = {
-		circle: {
-			center: {
-				x: (circle.center.x / canvas.width).toFixed(3),
-				y: (circle.center.y / canvas.height).toFixed(3),
-			},
-			radius: (circle.radius / canvas.width).toFixed(3),
-		},
-	};
-	console.log("Generated circle.json:", JSON.stringify(circleData, null, 2));
-
-	ctx.beginPath();
-	ctx.arc(circle.center.x, circle.center.y, circle.radius, 0, Math.PI * 2);
-	ctx.fillStyle = "rgba(255, 87, 51, 0.2)";
-	ctx.strokeStyle = "#FF5733";
-	ctx.lineWidth = 2;
-	ctx.fill();
-	ctx.stroke();
-});
 
 drawGrid();
 
