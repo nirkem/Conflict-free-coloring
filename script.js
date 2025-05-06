@@ -97,12 +97,16 @@ function finishDrawingCircle(event) {
 	// Finalize the circle
 	drawCirclePreview(circleStart, radius);
 
-	// Find and highlight the distinct point
+	// Find and highlight the point with the highest color number
 	const pointsInsideCircle = getPointsInsideCircle(circleStart, radius);
-	const distinctPoint = findDistinctPoint(pointsInsideCircle);
+	const highestColorPoint = findHighestColorPoint(pointsInsideCircle);
 
-	if (distinctPoint) {
-		highlightPoint(distinctPoint.x, distinctPoint.y);
+	if (highestColorPoint) {
+		highlightPoint(highestColorPoint.x, highestColorPoint.y);
+		document.getElementById("uniqueColorOutput").textContent =
+			highestColorPoint.color; // Update the unique color output
+	} else {
+		document.getElementById("uniqueColorOutput").textContent = "N/A"; // No points inside the circle
 	}
 
 	// Reset the starting point
@@ -156,30 +160,39 @@ function findDistinctPoint(pointsInsideCircle) {
 	return null; // No distinct point found
 }
 
+function findHighestColorPoint(pointsInsideCircle) {
+	if (pointsInsideCircle.length === 0) return null;
+
+	// Find the point with the maximum color number
+	return pointsInsideCircle.reduce((maxPoint, currentPoint) =>
+		currentPoint.color > maxPoint.color ? currentPoint : maxPoint
+	);
+}
+
 function highlightPoint(x, y) {
-  const highlightColor = "rgba(255, 215, 0, 0.5)"; // Semi-transparent yellow
-  const highlightRadius = 3; // Larger radius for the highlight
+	const highlightColor = "rgba(255, 215, 0, 0.5)"; // Semi-transparent yellow
+	const highlightRadius = 3; // Larger radius for the highlight
 
-  // Draw the highlight circle
-  ctx.beginPath();
-  ctx.arc(x, y, highlightRadius, 0, Math.PI * 2);
-  ctx.fillStyle = highlightColor;
-  ctx.fill();
+	// Draw the highlight circle
+	ctx.beginPath();
+	ctx.arc(x, y, highlightRadius, 0, Math.PI * 2);
+	ctx.fillStyle = highlightColor;
+	ctx.fill();
 
-  // Redraw the original point on top of the highlight
-  const originalPoint = points.find((p) => p.x === x && p.y === y);
-  if (originalPoint) {
-    const color = colorFromPalette(originalPoint.color).code;
-    drawPoint(x, y, color, points.length);
-  }
+	// Redraw the original point on top of the highlight
+	const originalPoint = points.find((p) => p.x === x && p.y === y);
+	if (originalPoint) {
+		const color = colorFromPalette(originalPoint.color).code;
+		drawPoint(x, y, color, points.length);
+	}
 }
 
 function drawRandomPoints(n) {
 	points = [];
 	for (let i = 0; i < n; i++) {
-		// Generate random numbers between 0 and 100
-		const x = +(Math.random() * 98).toFixed(1) + 1; // Random number between 0 and 100
-		const y = +(Math.random() * 98).toFixed(1) + 1; // Random number between 0 and 100
+		// Generate random integers between 1 and 100
+		const x = Math.round(Math.random() * 98) + 1; // Random integer between 1 and 100
+		const y = Math.round(Math.random() * 98) + 1; // Random integer between 1 and 100
 		points.push({ x, y, color: 0 });
 		drawPoint(x, y, "#000000", n); // Pass the total number of points
 	}
@@ -258,19 +271,19 @@ function updateJsonViewer() {
 
 		// Add X coordinate
 		const xCell = document.createElement("td");
-		xCell.textContent = point.x.toFixed(1);
+		xCell.textContent = Math.round(point.x); // Ensure integer value
 		row.appendChild(xCell);
 
 		// Add Y coordinate
 		const yCell = document.createElement("td");
-		yCell.textContent = point.y.toFixed(1);
+		yCell.textContent = Math.round(point.y); // Ensure integer value
 		row.appendChild(yCell);
 
 		// Add Color
 		const colorCell = document.createElement("td");
-		const { code, name } = colorFromPalette(point.color); // Get the color code and name
+		const { code } = colorFromPalette(point.color); // Get the color code
 		colorCell.style.backgroundColor = code; // Set the background color
-		colorCell.textContent = name; // Display the color name
+		colorCell.textContent = point.color; // Display the color number
 		colorCell.style.color = "#ffffff"; // Ensure text is visible on dark backgrounds
 		row.appendChild(colorCell);
 
