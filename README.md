@@ -80,3 +80,7 @@ https://conflict-free-coloring.onrender.com/docs#/
 **Running the server**
 Run the following command inside backend folder:
 uvicorn main:app --reload
+
+local backend: http://127.0.0.1:8000
+
+render backend: https://conflict-free-coloring.onrender.com

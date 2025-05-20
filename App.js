@@ -1,6 +1,6 @@
 // App.js
 
-const IP_address = "https://conflict-free-coloring.onrender.com";
+const IP_address = "http://127.0.0.1:8000";
 
 // Function to send points to backend and get colored points
 export const generateConflictFreeColoring = async (points) => {
