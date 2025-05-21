@@ -1,8 +1,9 @@
 This repository implement a simple Conflict-free coloring game.
 
 It can be opened by:
+**both methods required Google Chrome or another browser to load the game
 
-- Github pages:
+- Github pages(web):
 
   1. open link ---> https://nirkem.github.io/Conflict-free-coloring/
 

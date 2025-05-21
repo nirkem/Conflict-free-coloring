@@ -31,6 +31,16 @@ function colorFromPalette(colorNumber) {
 		{ code: "#228B22" }, // 27 Forest Green
 		{ code: "#FF69B4" }, // 28 Hot Pink
 		{ code: "#CD5C5C" }, // 29 Indian Red
+		{ code: "#FFD700" }, // 30 Gold
+		{ code: "#00FF7F" }, // 31 Spring Green
+		{ code: "#FF4500" }, // 32 Orange Red
+		{ code: "#483D8B" }, // 33 Dark Slate Blue
+		{ code: "#ADFF2F" }, // 34 Green Yellow
+		{ code: "#00FA9A" }, // 35 Medium Spring Green
+		{ code: "#C71585" }, // 36 Medium Violet Red
+		{ code: "#FF6347" }, // 37 Tomato
+		{ code: "#4682B4" }, // 38 Steel Blue
+		{ code: "#F5DEB3" }, // 39 Wheat
 	];
 	return colorPalette[colorNumber % colorPalette.length] || { code: "#000000" };
 }
@@ -79,7 +89,6 @@ function drawPoint(x, y, color = "#000000", totalPoints = 100) {
 	ctx.fillStyle = color;
 	ctx.fill();
 }
-
 function drawRandomPoints(n) {
 	points = [];
 	for (let i = 0; i < n; i++) {
@@ -90,7 +99,6 @@ function drawRandomPoints(n) {
 	}
 	updateJsonViewer();
 }
-
 // --- Circle Drawing Logic ---
 function toggleCircleMode() {
 	isCircleMode = !isCircleMode;
@@ -199,36 +207,54 @@ function highlightPoint(x, y) {
 
 // --- UI and Backend Communication ---
 function handleDraw() {
-	const count = parseInt(document.getElementById("pointCount").value);
-	if (!isNaN(count) && count > 0) {
-		drawGrid();
-		drawRandomPoints(count);
-		document.getElementById("generateColoringButton").disabled = false;
-	} else {
-		alert("Please enter a valid number of points.");
-	}
+    const count = parseInt(document.getElementById("pointCount").value);
+    if (!isNaN(count) && count > 0) {
+        drawGrid();
+        drawRandomPoints(count);
+        document.getElementById("generateColoringButton").disabled = false;
+
+        // Reset draw circle button to Off
+        isCircleMode = false;
+        const drawCircleButton = document.getElementById("drawCircleButton");
+        drawCircleButton.innerText = "Draw Circle (Off)";
+        drawCircleButton.disabled = true; // Optionally disable until coloring
+
+        // Remove circle drawing event listeners if present
+        canvas.removeEventListener("mousedown", startDrawingCircle);
+        canvas.removeEventListener("mousemove", previewCircle);
+        canvas.removeEventListener("mouseup", finishDrawingCircle);
+
+        // Reset number of colors to 0
+        document.getElementById("colorCountOutput").textContent = "0";
+
+        // Reset unique color inside circle value
+        document.getElementById("uniqueColorOutput").textContent = "N/A";
+    } else {
+        alert("Please enter a valid number of points.");
+    }
 }
 
 async function handleColoring() {
-	try {
-		const coloredPoints = await generateConflictFreeColoring(points);
-		drawGrid();
-		coloredPoints.forEach((p, i) => {
-			points[i].x = Math.round(p.x);
-			points[i].y = Math.round(p.y);
-			points[i].color = p.color;
-			const { code } = colorFromPalette(p.color);
-			drawPoint(points[i].x, points[i].y, code, points.length);
-		});
-		updateJsonViewer();
-		const uniqueColors = new Set(points.map((p) => p.color));
-		document.getElementById("colorCountOutput").textContent = uniqueColors.size;
-		const drawCircleButton = document.getElementById("drawCircleButton");
-		drawCircleButton.disabled = false;
-	} catch (err) {
-		console.error("Error from backend:", err);
-		alert("Failed to generate coloring from server.");
-	}
+    try {
+
+        const coloredPoints = await generateConflictFreeColoring(points);
+        drawGrid();
+        coloredPoints.forEach((p, i) => {
+            points[i].x = Math.round(p.x);
+            points[i].y = Math.round(p.y);
+            points[i].color = p.color;
+            const { code } = colorFromPalette(p.color);
+            drawPoint(points[i].x, points[i].y, code, points.length);
+        });
+        updateJsonViewer();
+        const uniqueColors = new Set(points.map((p) => p.color));
+        document.getElementById("colorCountOutput").textContent = uniqueColors.size;
+        const drawCircleButton = document.getElementById("drawCircleButton");
+        drawCircleButton.disabled = false;
+    } catch (err) {
+        console.error("Error from backend:", err);
+        alert("Failed to generate coloring from server.");
+    }
 }
 
 function updateJsonViewer() {
@@ -255,18 +281,6 @@ function updateJsonViewer() {
 	});
 }
 
-// --- Conflict-Free Coloring Algorithm (Standalone, No Import) ---
-function generateConflictFreeColoring(pointsInput) {
-	// This is a placeholder for the backend algorithm.
-	// For demonstration, assign colors in a round-robin fashion.
-	const coloredPoints = pointsInput.map((p, i) => ({
-		x: p.x,
-		y: p.y,
-		color: i % 10, // Just cycle through 10 colors for demo
-	}));
-	return Promise.resolve(coloredPoints);
-}
-
 // --- Attach to Window for HTML Event Handlers ---
 window.handleDraw = handleDraw;
 window.handleColoring = handleColoring;
@@ -279,3 +293,95 @@ document.getElementById("pointCount").addEventListener("keydown", function (e) {
 		handleDraw();
 	}
 });
+
+
+function getGraph(tris, n) {
+  const graph = Array.from({ length: n }, () => new Set());
+  for (let t = 0; t < tris.length; t += 3) {
+    const u = tris[t], v = tris[t+1], w = tris[t+2];
+    graph[u].add(v); graph[v].add(u);
+    graph[v].add(w); graph[w].add(v);
+    graph[w].add(u); graph[u].add(w);
+  }
+  return graph;
+}
+
+function greedyColor(graph) {
+  // Order nodes by descending degree
+  const nodes = [...graph.keys()];
+  nodes.sort((a,b) => graph[b].size - graph[a].size);
+
+  const coloring = {};
+  for (const u of nodes) {
+    // collect colors used by neighbors
+    const used = new Set();
+    for (const v of graph[u]) {
+      if (coloring[v] !== undefined) used.add(coloring[v]);
+    }
+    // assign smallest non‐negative color
+    let c = 0;
+    while (used.has(c)) c++;
+    coloring[u] = c;
+  }
+  return coloring;
+}
+
+function getMostCommonColor(coloring) {
+  const counts = {};
+  for (const node in coloring) {
+    const c = coloring[node];
+    counts[c] = (counts[c] || 0) + 1;
+  }
+  return +Object.keys(counts).reduce((a,b) =>
+    counts[a] > counts[b] ? a : b
+  );
+}
+
+function generateConflictFreeColoring(initialPoints) {
+  let points = initialPoints.slice();
+  let indices = points.map((_,i) => i);
+  const CF = {};         // final mapping i→color
+  let curColor = 1;
+
+  while (points.length > 0) {
+
+    if (points.length < 4) {
+      for (let i = 0; i < points.length; i++) {
+        CF[indices[i]] = curColor++;
+      }
+      break;
+    }
+	const delaunay = Delaunator.from(points.map(p => [p.x, p.y]));
+    const tris = delaunay.triangles;
+    console.log("Triangles length:", delaunay.triangles.length);
+    const G = getGraph(tris, points.length);
+    const coloring = greedyColor(G);
+    const keepColor = getMostCommonColor(coloring);
+    const toRemove = new Set();
+    for (let i = 0; i < points.length; i++) {
+      if (coloring[i] === keepColor) {
+        CF[indices[i]] = curColor;
+        toRemove.add(i);
+      }
+    }
+
+	const newPts = [], newIdx = [];
+    for (let i = 0; i < points.length; i++) {
+      if (!toRemove.has(i)) {
+        newPts.push(points[i]);
+        newIdx.push(indices[i]);
+      }
+    }
+    points = newPts;
+    indices = newIdx;
+    curColor++;
+  }
+
+  // Return an array of points with color
+  const result = initialPoints.map((pt, i) => ({
+    x: pt.x,
+    y: pt.y,
+    color: CF[i] !== undefined ? CF[i] : 0
+  }));
+  return result;
+}
