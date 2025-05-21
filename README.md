@@ -1,7 +1,8 @@
 This repository implement a simple Conflict-free coloring game.
 
+**both methods required Google Chrome or another browser to load the game**
+
 It can be opened by:
-**both methods required Google Chrome or another browser to load the game
 
 - Github pages(web):
 

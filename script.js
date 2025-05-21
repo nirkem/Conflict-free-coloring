@@ -62,7 +62,6 @@ let points = [];
 let isCircleMode = false;
 let circleStart = null;
 
-// --- Drawing Functions ---
 function drawGrid(spacing = 10) {
 	ctx.clearRect(0, 0, 100, 100);
 	ctx.strokeStyle = "#e0e0e0";
@@ -80,6 +79,7 @@ function drawGrid(spacing = 10) {
 		ctx.stroke();
 	}
 }
+
 function drawPoint(x, y, color = "#000000", totalPoints = 100) {
 	const maxRadius = 1.5;
 	const minRadius = 0.3;
@@ -89,6 +89,7 @@ function drawPoint(x, y, color = "#000000", totalPoints = 100) {
 	ctx.fillStyle = color;
 	ctx.fill();
 }
+
 function drawRandomPoints(n) {
 	points = [];
 	for (let i = 0; i < n; i++) {
@@ -99,7 +100,7 @@ function drawRandomPoints(n) {
 	}
 	updateJsonViewer();
 }
-// --- Circle Drawing Logic ---
+
 function toggleCircleMode() {
 	isCircleMode = !isCircleMode;
 	const button = document.getElementById("drawCircleButton");
@@ -205,7 +206,6 @@ function highlightPoint(x, y) {
 	}
 }
 
-// --- UI and Backend Communication ---
 function handleDraw() {
     const count = parseInt(document.getElementById("pointCount").value);
     if (!isNaN(count) && count > 0) {
@@ -213,21 +213,17 @@ function handleDraw() {
         drawRandomPoints(count);
         document.getElementById("generateColoringButton").disabled = false;
 
-        // Reset draw circle button to Off
         isCircleMode = false;
         const drawCircleButton = document.getElementById("drawCircleButton");
         drawCircleButton.innerText = "Draw Circle (Off)";
         drawCircleButton.disabled = true; // Optionally disable until coloring
 
-        // Remove circle drawing event listeners if present
         canvas.removeEventListener("mousedown", startDrawingCircle);
         canvas.removeEventListener("mousemove", previewCircle);
         canvas.removeEventListener("mouseup", finishDrawingCircle);
 
-        // Reset number of colors to 0
         document.getElementById("colorCountOutput").textContent = "0";
 
-        // Reset unique color inside circle value
         document.getElementById("uniqueColorOutput").textContent = "N/A";
     } else {
         alert("Please enter a valid number of points.");
@@ -281,12 +277,10 @@ function updateJsonViewer() {
 	});
 }
 
-// --- Attach to Window for HTML Event Handlers ---
 window.handleDraw = handleDraw;
 window.handleColoring = handleColoring;
 window.toggleCircleMode = toggleCircleMode;
 
-// --- Initialization ---
 drawGrid();
 document.getElementById("pointCount").addEventListener("keydown", function (e) {
 	if (e.key === "Enter") {
@@ -307,18 +301,15 @@ function getGraph(tris, n) {
 }
 
 function greedyColor(graph) {
-  // Order nodes by descending degree
   const nodes = [...graph.keys()];
   nodes.sort((a,b) => graph[b].size - graph[a].size);
 
   const coloring = {};
   for (const u of nodes) {
-    // collect colors used by neighbors
     const used = new Set();
     for (const v of graph[u]) {
       if (coloring[v] !== undefined) used.add(coloring[v]);
     }
-    // assign smallest non‐negative color
     let c = 0;
     while (used.has(c)) c++;
     coloring[u] = c;
@@ -377,7 +368,6 @@ function generateConflictFreeColoring(initialPoints) {
     curColor++;
   }
 
-  // Return an array of points with color
   const result = initialPoints.map((pt, i) => ({
     x: pt.x,
     y: pt.y,
