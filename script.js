@@ -81,7 +81,7 @@ const MAX_POINTS = 99 * 99;
 
 // --- State ---
 let points = [];
-let mode = null; // null | "circle" | "add" | "rounds"
+let mode = null; // null | "circle" | "rounds"
 let circleStart = null;
 let circle = null; // { center, radius, highest } of the circle on screen
 let hoverIndex = null;
@@ -288,7 +288,7 @@ function setCircleResult(color, occurrences, animate = true) {
 
 // The hint for whichever step comes next when no tool is active.
 function nextStepHint() {
-	if (points.length === 0) return "Enter a number of points, or pick Add points";
+	if (points.length === 0) return "Enter a number of points to begin";
 	if (!isColored()) return "Now generate a coloring";
 	return "Pick Circle above to test the coloring";
 }
@@ -330,10 +330,9 @@ function setHint(text) {
 	hint.classList.toggle("is-visible", Boolean(text));
 }
 
-// --- Tools (Circle / Add points) ---
+// --- Tools (Circle / Rounds) ---
 const MODE_HINTS = {
 	circle: "Drag on the canvas to draw a circle",
-	add: "Click to add a point. Click a point to remove it.",
 	rounds: null, // set by updateRoundUI
 };
 
@@ -356,11 +355,7 @@ function setMode(next) {
 	document
 		.getElementById("toolCircle")
 		.setAttribute("aria-pressed", String(mode === "circle"));
-	document
-		.getElementById("toolAdd")
-		.setAttribute("aria-pressed", String(mode === "add"));
 	canvas.classList.toggle("circle-mode", mode === "circle");
-	canvas.classList.toggle("add-mode", mode === "add");
 	if (mode === "rounds") updateRoundUI();
 	else setHint(MODE_HINTS[mode] || nextStepHint());
 	setCircleResult(null, 0);
@@ -377,11 +372,10 @@ function getCanvasCoords(event) {
 
 canvas.addEventListener("pointerdown", (event) => {
 	if (mode === "circle") startDrawingCircle(event);
-	else if (mode === "add") addOrRemovePoint(event);
 });
 canvas.addEventListener("pointermove", (event) => {
 	if (circleStart) previewCircle(event);
-	else setHover(pointNear(event, mode === "add" ? 0.6 : 1.2), true);
+	else setHover(pointNear(event), true);
 });
 canvas.addEventListener("pointerup", (event) => {
 	if (circleStart) finishDrawingCircle(event);
@@ -459,32 +453,14 @@ function findHighestColorPoint(pointsInsideCircle) {
 	);
 }
 
-// --- Add points ---
-// Clicking on a point removes it; anywhere else adds one on the nearest free
-// grid position. Either way the old coloring no longer applies.
-function addOrRemovePoint(event) {
-	const near = pointNear(event, 0.6);
-	if (near !== null) {
-		points.splice(near, 1);
-		hoverIndex = null;
-	} else {
-		if (points.length >= MAX_POINTS) return;
-		const { x, y } = getCanvasCoords(event);
-		const px = Math.min(99, Math.max(1, Math.round(x)));
-		const py = Math.min(99, Math.max(1, Math.round(y)));
-		if (points.some((p) => p.x === px && p.y === py)) return;
-		points.push({ x: px, y: py, color: 0 });
-	}
-	pointsChanged();
-}
-
+// --- Point set changes ---
 function clearPoints() {
 	points = [];
 	hoverIndex = null;
 	pointsChanged();
 }
 
-// Shared reset after the set of points changes by hand.
+// Shared reset after the set of points changes.
 function pointsChanged() {
 	cancelReveal();
 	triEdges = null;
@@ -645,10 +621,11 @@ function scrollRowIntoView(row) {
 	}
 }
 
-function pointNear(event, extra = 1.2) {
+// Index of the point under the cursor (with a little slack), or null.
+function pointNear(event) {
 	const { x, y } = getCanvasCoords(event);
 	let best = null;
-	let bestDist = pointRadius() + extra;
+	let bestDist = pointRadius() + 1.2;
 	points.forEach((p, i) => {
 		const d = Math.hypot(p.x - x, p.y - y);
 		if (d <= bestDist) {
@@ -739,6 +716,38 @@ window.toggleTriangulation = toggleTriangulation;
 window.clearPoints = clearPoints;
 window.stepRound = stepRound;
 window.togglePlay = togglePlay;
+
+// --- About dialog: opens once per browser session, reopens from "About" ---
+const GUIDE_SEEN_KEY = "cfc-guide-seen";
+const guide = document.getElementById("guide");
+
+function openGuide() {
+	if (!guide.open) guide.showModal();
+}
+
+function closeGuide() {
+	guide.close();
+}
+
+// The card fills the dialog, so a click on the dialog itself is the backdrop.
+guide.addEventListener("click", (event) => {
+	if (event.target === guide) closeGuide();
+});
+
+// Session storage lasts for the tab's session: refreshing keeps it, a new tab
+// or window starts fresh. It counts as seen as soon as it opens by itself. If
+// storage is unavailable, it simply shows on every load.
+try {
+	if (sessionStorage.getItem(GUIDE_SEEN_KEY) !== "1") {
+		openGuide();
+		sessionStorage.setItem(GUIDE_SEEN_KEY, "1");
+	}
+} catch {
+	openGuide();
+}
+
+window.openGuide = openGuide;
+window.closeGuide = closeGuide;
 
 const pointCountInput = document.getElementById("pointCount");
 pointCountInput.max = MAX_POINTS;

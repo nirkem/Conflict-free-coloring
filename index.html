@@ -38,13 +38,16 @@
 	<body>
 		<header class="topbar">
 			<h1>Conflict-Free Coloring</h1>
-			<a
-				class="topbar-link"
-				href="https://github.com/nirkem/Conflict-free-coloring"
-				target="_blank"
-				rel="noopener"
-				>Source on GitHub</a
-			>
+			<nav class="topbar-actions">
+				<button class="topbar-link" onclick="openGuide()">About</button>
+				<a
+					class="topbar-link"
+					href="https://github.com/nirkem/Conflict-free-coloring"
+					target="_blank"
+					rel="noopener"
+					>Source on GitHub</a
+				>
+			</nav>
 		</header>
 
 		<main class="layout">
@@ -61,14 +64,6 @@
 								disabled
 							>
 								Circle
-							</button>
-							<button
-								id="toolAdd"
-								class="tool"
-								aria-pressed="false"
-								onclick="setMode('add')"
-							>
-								Add points
 							</button>
 							<button
 								id="toolRounds"
@@ -135,7 +130,7 @@
 							aria-label="Points canvas"
 						></canvas>
 						<p id="canvasHint" class="canvas-hint is-visible">
-							Enter a number of points, or pick Add points
+							Enter a number of points to begin
 						</p>
 					</div>
 				</div>
@@ -152,8 +147,7 @@
 						<summary>How it works</summary>
 						<ol class="how-body">
 							<li>
-								Draw random points or place your own, then generate a
-								coloring.
+								Draw random points, then generate a coloring.
 							</li>
 							<li>
 								Each round, the algorithm picks points that are not neighbors in
@@ -231,8 +225,97 @@
 						<p id="tableEmpty" class="table-empty">No points yet.</p>
 					</div>
 				</section>
+
+				<footer class="credit" style="--i: 4">
+					Created by Nir Michalovitz and Omer Levy
+				</footer>
 			</aside>
 		</main>
+
+		<!-- First-visit guide -->
+		<dialog id="guide" class="guide" aria-labelledby="guideTitle">
+			<div class="guide-card">
+				<header class="guide-header">
+					<h2 id="guideTitle">Conflict-free coloring simulator</h2>
+					<button
+						class="guide-close"
+						aria-label="Close"
+						onclick="closeGuide()"
+					>
+						&times;
+					</button>
+				</header>
+
+				<div class="guide-body">
+					<p class="guide-lead">
+						This page simulates an algorithm for conflict-free coloring of
+						points with respect to discs, and lets you test the result
+						yourself.
+					</p>
+
+					<h3>The problem</h3>
+					<p>
+						Color a set of points in the plane so that every disc containing
+						at least one point also contains a point whose color is unique in
+						that disc. The goal is to use as few colors as possible.
+					</p>
+					<p>
+						It comes from cellular networks: antennas are the points, colors
+						are frequencies, and a phone anywhere must hear at least one
+						antenna on a frequency no other nearby antenna uses.
+					</p>
+
+					<h3>The algorithm</h3>
+					<p>
+						Based on Even, Lotker, Ron and Smorodinsky (2003). While points
+						remain:
+					</p>
+					<ol class="guide-steps">
+						<li>
+							Build the <strong>Delaunay triangulation</strong> of the
+							remaining points.
+						</li>
+						<li>
+							Color that graph so neighbors differ and keep the largest color
+							class: an <strong>independent set</strong> with at least a
+							sixth of the points.
+						</li>
+						<li>
+							Give that set the <strong>next color</strong> and remove it.
+						</li>
+					</ol>
+					<p>
+						Any disc holding two or more remaining points contains a Delaunay
+						edge, so its points never all leave in the same round. That makes
+						the highest color inside any disc unique. Each round removes a
+						constant fraction of the points, so only about
+						<strong>log n</strong> colors are needed.
+					</p>
+
+					<h3>Using the simulator</h3>
+					<ul class="guide-list">
+						<li>
+							<strong>Draw points</strong> places random points.
+						</li>
+						<li><strong>Generate coloring</strong> runs the algorithm.</li>
+						<li>
+							<strong>Circle</strong>: drag a disc and watch its unique color.
+						</li>
+						<li>
+							<strong>Rounds</strong> replays the algorithm step by step, and
+							<strong>Triangulation</strong> shows the graph.
+						</li>
+					</ul>
+				</div>
+
+				<footer class="guide-footer">
+					<span class="guide-hint">Reopen anytime from About at the top.</span>
+					<button class="btn btn-primary" onclick="closeGuide()" autofocus>
+						Start
+					</button>
+				</footer>
+			</div>
+		</dialog>
 
 		<script src="vendor/delaunator.min.js"></script>
 		<script src="script.js"></script>
