@@ -38,6 +38,7 @@
 
 	/* Canvas drawing colors (read by script.js) */
 	--canvas-grid: rgba(255, 255, 255, 0.055);
+	--canvas-edge: rgba(255, 255, 255, 0.22);
 	--point-uncolored: #c6c9d1;
 
 	--radius: 10px;
@@ -122,10 +123,18 @@ body {
 	justify-content: center;
 }
 
+/* Toolbar + canvas share one width: as large as fits beside the panel and
+   below the top bar (56px), stage padding (48px) and toolbar (46px). */
+.stage-inner {
+	width: min(100%, calc(100dvh - 56px - 48px - 46px), 760px);
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
 .canvas-frame {
 	position: relative;
-	width: min(100%, calc(100dvh - 56px - 48px));
-	max-width: 760px;
+	width: 100%;
 	aspect-ratio: 1;
 	border: 1px solid var(--line);
 	border-radius: var(--radius);
@@ -165,6 +174,78 @@ body {
 .canvas-hint.is-visible {
 	opacity: 1;
 	transform: translate(-50%, 0);
+}
+
+/* --- Canvas toolbar --- */
+.toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.segmented {
+	display: flex;
+	padding: 3px;
+	gap: 2px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	background: var(--surface);
+}
+
+.tool {
+	height: 28px;
+	padding: 0 12px;
+	border: 1px solid transparent;
+	border-radius: 7px;
+	background: transparent;
+	color: var(--text-muted);
+	font: inherit;
+	font-size: 13px;
+	font-weight: 500;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: background-color 150ms ease, border-color 150ms ease,
+		color 150ms ease, transform 160ms var(--ease-out);
+}
+
+/* Standalone tools get the same outer height as the segmented group */
+.tool-solo {
+	height: 36px;
+	border-color: var(--line);
+	border-radius: var(--radius);
+	background: var(--surface);
+}
+
+.tool-end {
+	margin-left: auto;
+}
+
+.tool[aria-pressed="true"] {
+	background: var(--accent-soft);
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+.tool:active:not(:disabled) {
+	transform: scale(0.97);
+}
+
+.tool:disabled {
+	cursor: not-allowed;
+	color: var(--text-faint);
+	opacity: 0.6;
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.tool:hover:not(:disabled):not([aria-pressed="true"]) {
+		background: var(--surface-2);
+		color: var(--text);
+	}
+}
+
+#canvas.add-mode {
+	cursor: copy;
 }
 
 /* --- Panel --- */
@@ -422,6 +503,25 @@ input[aria-invalid="true"] {
 	display: none;
 }
 
+.test-result {
+	margin: -4px 0 0;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.test-result strong {
+	color: var(--text);
+	font-weight: 500;
+}
+
+.test-result.is-bad strong {
+	color: var(--danger);
+}
+
+.test-result[hidden] {
+	display: none;
+}
+
 .note {
 	margin: -4px 0 0;
 	color: var(--danger);
@@ -526,7 +626,7 @@ tbody tr.is-hovered td {
 		animation-delay: calc(var(--i, 0) * 60ms);
 	}
 
-	.canvas-frame {
+	.stage-inner {
 		animation: settle-in 420ms var(--ease-out) both;
 	}
 }
@@ -539,6 +639,7 @@ tbody tr.is-hovered td {
 }
 
 @media (prefers-reduced-motion: reduce) {
+	.tool:active:not(:disabled),
 	.btn:active:not(:disabled) {
 		transform: none;
 	}
@@ -567,7 +668,7 @@ tbody tr.is-hovered td {
 		padding: 16px;
 	}
 
-	.canvas-frame {
+	.stage-inner {
 		width: 100%;
 	}
 

@@ -5,6 +5,7 @@ const GRID_COLOR = token("--canvas-grid");
 const ACCENT = token("--accent");
 const UNCOLORED = token("--point-uncolored");
 const TEXT_COLOR = token("--text");
+const EDGE_COLOR = token("--canvas-edge");
 
 const prefersReducedMotion = window.matchMedia(
 	"(prefers-reduced-motion: reduce)"
@@ -80,11 +81,14 @@ const MAX_POINTS = 99 * 99;
 
 // --- State ---
 let points = [];
-let isCircleMode = false;
+let mode = null; // null | "circle" | "add"
 let circleStart = null;
 let circle = null; // { center, radius, highest } of the circle on screen
 let hoverIndex = null;
 let revealFrame = null;
+let showTriangulation = false;
+let triEdges = null; // cached Delaunay edges of the current points
+let testRun = 0; // bumps to stop an outdated circle test
 
 function drawGrid(spacing = 10) {
 	ctx.clearRect(0, 0, 100, 100);
@@ -119,10 +123,11 @@ function drawRing(point, color, gap, width) {
 	ctx.stroke();
 }
 
-// Draws the whole scene: grid, points, the current circle and its unique
+// Draws the whole scene: grid, triangulation, points, the current circle and its unique
 // point, and the hovered point.
 function render() {
 	drawGrid();
+	drawTriangulation();
 	points.forEach((p) => drawPoint(p.x, p.y, colorFromPalette(p.color).code));
 
 	if (circle && circle.radius > 0) {
@@ -157,8 +162,6 @@ function drawRandomPoints(n) {
 		points.push({ x, y, color: 0 });
 	}
 	hoverIndex = null;
-	render();
-	updateJsonViewer();
 }
 
 // Reveal the coloring one color class at a time, lowest first, so the order of
@@ -178,6 +181,7 @@ function revealColoring() {
 	const frame = (now) => {
 		const elapsed = now - start;
 		drawGrid();
+		drawTriangulation();
 		for (const p of points) {
 			const t = (elapsed - (p.color - 1) * stagger) / fade;
 			const alpha = Math.min(1, Math.max(0, t));
@@ -244,9 +248,9 @@ function setCircleResult(color, occurrences, animate = true) {
 
 // The hint for whichever step comes next when no tool is active.
 function nextStepHint() {
-	if (points.length === 0) return "Enter a number of points to begin";
-	if (points.every((p) => p.color === 0)) return "Now generate a coloring";
-	return "Draw a circle to test it";
+	if (points.length === 0) return "Enter a number of points, or pick Add points";
+	if (!isColored()) return "Now generate a coloring";
+	return "Pick Circle above to test the coloring";
 }
 
 function setSummary(pointCount, colorCount) {
@@ -286,37 +290,28 @@ function setHint(text) {
 	hint.classList.toggle("is-visible", Boolean(text));
 }
 
-// --- Circle Mode ---
-function setCircleMode(enabled) {
-	isCircleMode = enabled;
+// --- Tools (Circle / Add points) ---
+const MODE_HINTS = {
+	circle: "Drag on the canvas to draw a circle",
+	add: "Click to add a point. Click a point to remove it.",
+};
+
+// Picking the active tool again switches it off.
+function setMode(next) {
+	mode = next === mode ? null : next;
 	circleStart = null;
 	circle = null;
-	const button = document.getElementById("drawCircleButton");
-	button.setAttribute("aria-pressed", String(isCircleMode));
-
-	if (isCircleMode) {
-		canvas.addEventListener("pointerdown", startDrawingCircle);
-		canvas.addEventListener("pointermove", previewCircle);
-		canvas.addEventListener("pointerup", finishDrawingCircle);
-		canvas.addEventListener("pointercancel", cancelDrawingCircle);
-		setHint("Drag on the canvas to draw a circle");
-	} else {
-		canvas.removeEventListener("pointerdown", startDrawingCircle);
-		canvas.removeEventListener("pointermove", previewCircle);
-		canvas.removeEventListener("pointerup", finishDrawingCircle);
-		canvas.removeEventListener("pointercancel", cancelDrawingCircle);
-		setHint(nextStepHint());
-	}
-	canvas.classList.toggle("circle-mode", isCircleMode);
-}
-
-function toggleCircleMode() {
-	// Circles are measured against the final coloring, so skip any reveal
-	// still in progress.
-	cancelReveal();
-	setCircleMode(!isCircleMode);
+	document
+		.getElementById("toolCircle")
+		.setAttribute("aria-pressed", String(mode === "circle"));
+	document
+		.getElementById("toolAdd")
+		.setAttribute("aria-pressed", String(mode === "add"));
+	canvas.classList.toggle("circle-mode", mode === "circle");
+	canvas.classList.toggle("add-mode", mode === "add");
+	setHint(MODE_HINTS[mode] || nextStepHint());
 	setCircleResult(null, 0);
-	render();
+	if (revealFrame === null) render();
 }
 
 function getCanvasCoords(event) {
@@ -327,12 +322,34 @@ function getCanvasCoords(event) {
 	};
 }
 
+canvas.addEventListener("pointerdown", (event) => {
+	if (mode === "circle") startDrawingCircle(event);
+	else if (mode === "add") addOrRemovePoint(event);
+});
+canvas.addEventListener("pointermove", (event) => {
+	if (circleStart) previewCircle(event);
+	else setHover(pointNear(event, mode === "add" ? 0.6 : 1.2), true);
+});
+canvas.addEventListener("pointerup", (event) => {
+	if (circleStart) finishDrawingCircle(event);
+});
+canvas.addEventListener("pointercancel", () => {
+	if (circleStart) cancelDrawingCircle();
+});
+canvas.addEventListener("pointerleave", () => {
+	if (!circleStart) setHover(null);
+});
+
+// --- Circle ---
 function radiusTo(event) {
 	const { x, y } = getCanvasCoords(event);
 	return Math.hypot(x - circleStart.x, y - circleStart.y);
 }
 
 function startDrawingCircle(event) {
+	// Circles are measured against the final coloring, so skip any reveal
+	// still in progress.
+	cancelReveal();
 	// Capture keeps pointerup coming to the canvas even if released outside it.
 	canvas.setPointerCapture(event.pointerId);
 	circleStart = getCanvasCoords(event);
@@ -342,7 +359,6 @@ function startDrawingCircle(event) {
 }
 
 function previewCircle(event) {
-	if (!circleStart) return;
 	circle.radius = radiusTo(event);
 	// Updates on every move, so the numbers change without animation.
 	measureCircle(false);
@@ -357,7 +373,6 @@ function cancelDrawingCircle() {
 }
 
 function finishDrawingCircle(event) {
-	if (!circleStart) return;
 	circle.radius = radiusTo(event);
 	measureCircle(true);
 	render();
@@ -391,6 +406,196 @@ function findHighestColorPoint(pointsInsideCircle) {
 	);
 }
 
+// --- Add points ---
+// Clicking on a point removes it; anywhere else adds one on the nearest free
+// grid position. Either way the old coloring no longer applies.
+function addOrRemovePoint(event) {
+	const near = pointNear(event, 0.6);
+	if (near !== null) {
+		points.splice(near, 1);
+		hoverIndex = null;
+	} else {
+		if (points.length >= MAX_POINTS) return;
+		const { x, y } = getCanvasCoords(event);
+		const px = Math.min(99, Math.max(1, Math.round(x)));
+		const py = Math.min(99, Math.max(1, Math.round(y)));
+		if (points.some((p) => p.x === px && p.y === py)) return;
+		points.push({ x: px, y: py, color: 0 });
+	}
+	pointsChanged();
+}
+
+function clearPoints() {
+	points = [];
+	hoverIndex = null;
+	pointsChanged();
+}
+
+// Shared reset after the set of points changes by hand.
+function pointsChanged() {
+	cancelReveal();
+	triEdges = null;
+	resetColoring();
+	updateJsonViewer();
+	updateToolAvailability();
+	setHint(MODE_HINTS[mode] || nextStepHint());
+	render();
+}
+
+function resetColoring() {
+	points.forEach((p) => (p.color = 0));
+	if (mode === "circle") setMode(null);
+	circle = null;
+	setOutput(document.getElementById("colorCountOutput"), 0);
+	setCircleResult(null, 0);
+	setSummary(null);
+	setTestResult(null);
+}
+
+function isColored() {
+	return points.length > 0 && points.every((p) => p.color > 0);
+}
+
+function updateToolAvailability() {
+	const hasPoints = points.length > 0;
+	document.getElementById("generateColoringButton").disabled = !hasPoints;
+	document.getElementById("toolClear").disabled = !hasPoints;
+	document.getElementById("toolTriangulation").disabled = points.length < 2;
+	document.getElementById("toolCircle").disabled = !isColored();
+	document.getElementById("testButton").disabled = !isColored();
+}
+
+// --- Triangulation overlay ---
+function toggleTriangulation() {
+	showTriangulation = !showTriangulation;
+	document
+		.getElementById("toolTriangulation")
+		.setAttribute("aria-pressed", String(showTriangulation));
+	if (revealFrame === null) render();
+}
+
+// Edges of the Delaunay graph of all points, each listed once.
+function triangulationEdges() {
+	if (!triEdges) {
+		triEdges = [];
+		if (points.length >= 2) {
+			getGraph(points).forEach((neighbors, u) => {
+				for (const v of neighbors) if (u < v) triEdges.push([u, v]);
+			});
+		}
+	}
+	return triEdges;
+}
+
+function drawTriangulation() {
+	if (!showTriangulation) return;
+	ctx.beginPath();
+	for (const [u, v] of triangulationEdges()) {
+		ctx.moveTo(points[u].x, points[u].y);
+		ctx.lineTo(points[v].x, points[v].y);
+	}
+	ctx.strokeStyle = EDGE_COLOR;
+	ctx.lineWidth = 0.14;
+	ctx.stroke();
+}
+
+// --- Circle test ---
+const TEST_CIRCLES = 10000;
+
+function setTestResult(text, bad = false) {
+	const el = document.getElementById("testResult");
+	el.hidden = text === null;
+	if (text === null) return;
+	el.classList.toggle("is-bad", bad);
+	el.replaceChildren(...text);
+}
+
+// Buckets points into square cells so a circle only looks at nearby points.
+const CELL = 4;
+const CELLS = Math.ceil(101 / CELL);
+
+function buildPointGrid() {
+	const grid = Array.from({ length: CELLS * CELLS }, () => []);
+	for (const p of points) {
+		grid[Math.floor(p.y / CELL) * CELLS + Math.floor(p.x / CELL)].push(p);
+	}
+	return grid;
+}
+
+// Returns how often the highest color inside the circle occurs (0 if empty).
+function highestColorCount(grid, center, radius) {
+	const clamp = (v) => Math.min(CELLS - 1, Math.max(0, Math.floor(v / CELL)));
+	const r2 = radius * radius;
+	let best = 0;
+	let count = 0;
+	for (let cy = clamp(center.y - radius); cy <= clamp(center.y + radius); cy++) {
+		for (let cx = clamp(center.x - radius); cx <= clamp(center.x + radius); cx++) {
+			for (const p of grid[cy * CELLS + cx]) {
+				const dx = p.x - center.x;
+				const dy = p.y - center.y;
+				if (dx * dx + dy * dy > r2) continue;
+				if (p.color > best) {
+					best = p.color;
+					count = 1;
+				} else if (p.color === best) {
+					count++;
+				}
+			}
+		}
+	}
+	return count;
+}
+
+// Checks random circles in short time slices so the page stays responsive.
+// Radii are biased toward small circles, which hold few points and are the
+// likeliest place for a conflict.
+function testCircles() {
+	const run = ++testRun;
+	const button = document.getElementById("testButton");
+	button.disabled = true;
+	setTestResult(["Testing..."]);
+	const grid = buildPointGrid();
+	let done = 0;
+	let conflicts = 0;
+	let firstConflict = null;
+
+	const chunk = () => {
+		if (run !== testRun) return; // points changed mid-test
+		// Work for about one frame, then yield so the page can repaint.
+		const deadline = performance.now() + 14;
+		for (; done < TEST_CIRCLES && performance.now() < deadline; done++) {
+			const center = { x: Math.random() * 110 - 5, y: Math.random() * 110 - 5 };
+			const radius = 60 * Math.random() ** 2;
+			if (highestColorCount(grid, center, radius) > 1) {
+				conflicts++;
+				firstConflict ??= { center, radius, highest: null };
+			}
+		}
+		if (done < TEST_CIRCLES) {
+			const strong = document.createElement("strong");
+			strong.textContent = done.toLocaleString("en-US");
+			setTestResult(["Testing... ", strong, " circles checked"]);
+			setTimeout(chunk, 0);
+			return;
+		}
+		const strong = document.createElement("strong");
+		strong.textContent = `${conflicts} ${conflicts === 1 ? "conflict" : "conflicts"}`;
+		setTestResult(
+			[`Checked ${TEST_CIRCLES.toLocaleString("en-US")} circles: `, strong, "."],
+			conflicts > 0
+		);
+		button.disabled = false;
+		if (firstConflict) {
+			// Show the first failing circle so it can be inspected.
+			if (mode !== "circle") setMode("circle");
+			circle = firstConflict;
+			measureCircle(true);
+			render();
+		}
+	};
+	chunk();
+}
+
 // --- Hover: link table rows and canvas points ---
 function setHover(index, scrollRow = false) {
 	if (index === hoverIndex) return;
@@ -419,11 +624,10 @@ function scrollRowIntoView(row) {
 	}
 }
 
-function pointNear(event) {
+function pointNear(event, extra = 1.2) {
 	const { x, y } = getCanvasCoords(event);
-	const reach = pointRadius() + 1.2;
 	let best = null;
-	let bestDist = reach;
+	let bestDist = pointRadius() + extra;
 	points.forEach((p, i) => {
 		const d = Math.hypot(p.x - x, p.y - y);
 		if (d <= bestDist) {
@@ -433,14 +637,6 @@ function pointNear(event) {
 	});
 	return best;
 }
-
-canvas.addEventListener("pointermove", (event) => {
-	if (circleStart) return;
-	setHover(pointNear(event), true);
-});
-canvas.addEventListener("pointerleave", () => {
-	if (!circleStart) setHover(null);
-});
 
 const tableBody = document.getElementById("pointsTableBody");
 tableBody.addEventListener("pointerover", (event) => {
@@ -465,16 +661,8 @@ function handleDraw() {
 		return;
 	}
 	showPointError(null);
-	cancelReveal();
 	drawRandomPoints(count);
-	document.getElementById("generateColoringButton").disabled = false;
-
-	setCircleMode(false);
-	document.getElementById("drawCircleButton").disabled = true;
-
-	setOutput(document.getElementById("colorCountOutput"), 0);
-	setCircleResult(null, 0);
-	setSummary(null);
+	pointsChanged();
 }
 
 function handleColoring() {
@@ -482,14 +670,18 @@ function handleColoring() {
 	coloredPoints.forEach((p, i) => {
 		points[i].color = p.color;
 	});
-	setCircleMode(false);
-	setCircleResult(null, 0);
+	testRun++;
+	setTestResult(null);
 	updateJsonViewer();
+	updateToolAvailability();
 	const uniqueColors = new Set(points.map((p) => p.color));
 	setOutput(document.getElementById("colorCountOutput"), uniqueColors.size);
 	setSummary(points.length, uniqueColors.size);
 
-	document.getElementById("drawCircleButton").disabled = false;
+	// Testing a circle is the natural next step, so switch to that tool.
+	if (mode !== "circle") setMode("circle");
+	else setCircleResult(null, 0);
+	circle = null;
 	revealColoring();
 }
 
@@ -522,7 +714,10 @@ function updateJsonViewer() {
 
 window.handleDraw = handleDraw;
 window.handleColoring = handleColoring;
-window.toggleCircleMode = toggleCircleMode;
+window.setMode = setMode;
+window.toggleTriangulation = toggleTriangulation;
+window.clearPoints = clearPoints;
+window.testCircles = testCircles;
 
 const pointCountInput = document.getElementById("pointCount");
 pointCountInput.max = MAX_POINTS;

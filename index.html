@@ -50,16 +50,56 @@
 		<main class="layout">
 			<!-- Canvas -->
 			<section class="stage">
-				<div class="canvas-frame">
-					<canvas
-						id="canvas"
-						width="1200"
-						height="1200"
-						aria-label="Points canvas"
-					></canvas>
-					<p id="canvasHint" class="canvas-hint is-visible">
-						Enter a number of points to begin
-					</p>
+				<div class="stage-inner">
+					<div class="toolbar" role="toolbar" aria-label="Canvas tools">
+						<div class="segmented">
+							<button
+								id="toolCircle"
+								class="tool"
+								aria-pressed="false"
+								onclick="setMode('circle')"
+								disabled
+							>
+								Circle
+							</button>
+							<button
+								id="toolAdd"
+								class="tool"
+								aria-pressed="false"
+								onclick="setMode('add')"
+							>
+								Add points
+							</button>
+						</div>
+						<button
+							id="toolTriangulation"
+							class="tool tool-solo"
+							aria-pressed="false"
+							onclick="toggleTriangulation()"
+							disabled
+						>
+							Triangulation
+						</button>
+						<button
+							id="toolClear"
+							class="tool tool-solo tool-end"
+							onclick="clearPoints()"
+							disabled
+						>
+							Clear
+						</button>
+					</div>
+					<div class="canvas-frame">
+						<canvas
+							id="canvas"
+							width="1200"
+							height="1200"
+							aria-label="Points canvas"
+						></canvas>
+						<p id="canvasHint" class="canvas-hint is-visible">
+							Enter a number of points, or pick Add points
+						</p>
+					</div>
 				</div>
 			</section>
 
@@ -73,7 +113,10 @@
 					<details class="how">
 						<summary>How it works</summary>
 						<ol class="how-body">
-							<li>Draw random points, then generate a coloring.</li>
+							<li>
+								Draw random points or place your own, then generate a
+								coloring.
+							</li>
 							<li>
 								Each round, the algorithm picks points that are not neighbors in
 								the Delaunay triangulation and gives them the next color. Higher
@@ -81,7 +124,7 @@
 							</li>
 							<li>
 								In any circle, the highest color appears exactly once. Draw one
-								to check.
+								to check, or turn on Triangulation to see the graph.
 							</li>
 							<li>The number of colors grows roughly like log n.</li>
 						</ol>
@@ -133,14 +176,14 @@
 					<p id="circleNote" class="note" hidden></p>
 
 					<button
-						id="drawCircleButton"
+						id="testButton"
 						class="btn btn-toggle"
-						onclick="toggleCircleMode()"
-						aria-pressed="false"
+						onclick="testCircles()"
 						disabled
 					>
-						Draw circle
+						Test 10,000 random circles
 					</button>
+					<p id="testResult" class="test-result" aria-live="polite" hidden></p>
 				</section>
 
 				<section class="group table-group" style="--i: 3">
