@@ -70,6 +70,44 @@
 							>
 								Add points
 							</button>
+							<button
+								id="toolRounds"
+								class="tool"
+								aria-pressed="false"
+								onclick="setMode('rounds')"
+								disabled
+							>
+								Rounds
+							</button>
+						</div>
+						<div id="roundStepper" class="segmented stepper" hidden>
+							<button
+								id="roundPrev"
+								class="tool tool-icon"
+								aria-label="Previous round"
+								onclick="stepRound(-1)"
+							>
+								&lsaquo;
+							</button>
+							<span id="roundLabel" class="stepper-label" aria-live="polite"
+								>Round 1 of 1</span
+							>
+							<button
+								id="roundNext"
+								class="tool tool-icon"
+								aria-label="Next round"
+								onclick="stepRound(1)"
+							>
+								&rsaquo;
+							</button>
+							<button
+								id="roundPlay"
+								class="tool"
+								aria-pressed="false"
+								onclick="togglePlay()"
+							>
+								Play
+							</button>
 						</div>
 						<button
 							id="toolTriangulation"
@@ -124,7 +162,8 @@
 							</li>
 							<li>
 								In any circle, the highest color appears exactly once. Draw one
-								to check, or turn on Triangulation to see the graph.
+								to check, turn on Triangulation to see the graph, or open
+								Rounds to replay the algorithm step by step.
 							</li>
 							<li>The number of colors grows roughly like log n.</li>
 						</ol>
@@ -174,16 +213,6 @@
 						</div>
 					</div>
 					<p id="circleNote" class="note" hidden></p>
-
-					<button
-						id="testButton"
-						class="btn btn-toggle"
-						onclick="testCircles()"
-						disabled
-					>
-						Test 10,000 random circles
-					</button>
-					<p id="testResult" class="test-result" aria-live="polite" hidden></p>
 				</section>
 
 				<section class="group table-group" style="--i: 3">

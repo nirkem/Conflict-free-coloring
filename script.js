@@ -81,14 +81,16 @@ const MAX_POINTS = 99 * 99;
 
 // --- State ---
 let points = [];
-let mode = null; // null | "circle" | "add"
+let mode = null; // null | "circle" | "add" | "rounds"
 let circleStart = null;
 let circle = null; // { center, radius, highest } of the circle on screen
 let hoverIndex = null;
 let revealFrame = null;
 let showTriangulation = false;
 let triEdges = null; // cached Delaunay edges of the current points
-let testRun = 0; // bumps to stop an outdated circle test
+let rounds = null; // per-color snapshots recorded by the algorithm
+let roundIndex = 0;
+let playTimer = null;
 
 function drawGrid(spacing = 10) {
 	ctx.clearRect(0, 0, 100, 100);
@@ -126,6 +128,11 @@ function drawRing(point, color, gap, width) {
 // Draws the whole scene: grid, triangulation, points, the current circle and its unique
 // point, and the hovered point.
 function render() {
+	if (mode === "rounds" && rounds) {
+		renderRound();
+		drawHoverRing();
+		return;
+	}
 	drawGrid();
 	drawTriangulation();
 	points.forEach((p) => drawPoint(p.x, p.y, colorFromPalette(p.color).code));
@@ -143,8 +150,41 @@ function render() {
 		if (circle.highest) drawRing(circle.highest, ACCENT, 1.4, 0.3);
 	}
 
+	drawHoverRing();
+}
+
+function drawHoverRing() {
 	if (hoverIndex !== null && points[hoverIndex]) {
 		drawRing(points[hoverIndex], TEXT_COLOR, 0.9, 0.25);
+	}
+}
+
+// One round of the algorithm: points colored in earlier rounds are faded,
+// points still in play are gray with their Delaunay graph, and the points
+// taking this round's color are shown in it.
+function renderRound() {
+	const k = roundIndex + 1;
+	drawGrid();
+	ctx.beginPath();
+	for (const [u, v] of rounds[roundIndex].edges) {
+		ctx.moveTo(points[u].x, points[u].y);
+		ctx.lineTo(points[v].x, points[v].y);
+	}
+	ctx.strokeStyle = EDGE_COLOR;
+	ctx.lineWidth = 0.14;
+	ctx.stroke();
+
+	for (const p of points) {
+		if (p.color < k) {
+			ctx.globalAlpha = 0.22;
+			drawPoint(p.x, p.y, colorFromPalette(p.color).code);
+			ctx.globalAlpha = 1;
+		} else if (p.color > k) {
+			drawPoint(p.x, p.y, UNCOLORED);
+		}
+	}
+	for (const p of points) {
+		if (p.color === k) drawPoint(p.x, p.y, colorFromPalette(p.color).code);
 	}
 }
 
@@ -294,6 +334,7 @@ function setHint(text) {
 const MODE_HINTS = {
 	circle: "Drag on the canvas to draw a circle",
 	add: "Click to add a point. Click a point to remove it.",
+	rounds: null, // set by updateRoundUI
 };
 
 // Picking the active tool again switches it off.
@@ -301,6 +342,17 @@ function setMode(next) {
 	mode = next === mode ? null : next;
 	circleStart = null;
 	circle = null;
+	stopPlay();
+	if (mode === "rounds") {
+		// The round view replaces the reveal animation.
+		cancelReveal();
+		roundIndex = 0;
+	}
+	document
+		.getElementById("toolRounds")
+		.setAttribute("aria-pressed", String(mode === "rounds"));
+	document.querySelector(".toolbar").classList.toggle("is-rounds", mode === "rounds");
+	document.getElementById("roundStepper").hidden = mode !== "rounds";
 	document
 		.getElementById("toolCircle")
 		.setAttribute("aria-pressed", String(mode === "circle"));
@@ -309,7 +361,8 @@ function setMode(next) {
 		.setAttribute("aria-pressed", String(mode === "add"));
 	canvas.classList.toggle("circle-mode", mode === "circle");
 	canvas.classList.toggle("add-mode", mode === "add");
-	setHint(MODE_HINTS[mode] || nextStepHint());
+	if (mode === "rounds") updateRoundUI();
+	else setHint(MODE_HINTS[mode] || nextStepHint());
 	setCircleResult(null, 0);
 	if (revealFrame === null) render();
 }
@@ -444,12 +497,12 @@ function pointsChanged() {
 
 function resetColoring() {
 	points.forEach((p) => (p.color = 0));
-	if (mode === "circle") setMode(null);
+	rounds = null;
+	if (mode === "circle" || mode === "rounds") setMode(null);
 	circle = null;
 	setOutput(document.getElementById("colorCountOutput"), 0);
 	setCircleResult(null, 0);
 	setSummary(null);
-	setTestResult(null);
 }
 
 function isColored() {
@@ -462,7 +515,7 @@ function updateToolAvailability() {
 	document.getElementById("toolClear").disabled = !hasPoints;
 	document.getElementById("toolTriangulation").disabled = points.length < 2;
 	document.getElementById("toolCircle").disabled = !isColored();
-	document.getElementById("testButton").disabled = !isColored();
+	document.getElementById("toolRounds").disabled = !isColored() || !rounds;
 }
 
 // --- Triangulation overlay ---
@@ -499,102 +552,70 @@ function drawTriangulation() {
 	ctx.stroke();
 }
 
-// --- Circle test ---
-const TEST_CIRCLES = 10000;
+// --- Rounds: replay the algorithm one color at a time ---
+const PLAY_INTERVAL = 900;
 
-function setTestResult(text, bad = false) {
-	const el = document.getElementById("testResult");
-	el.hidden = text === null;
-	if (text === null) return;
-	el.classList.toggle("is-bad", bad);
-	el.replaceChildren(...text);
+function stepRound(delta) {
+	const next = Math.min(rounds.length - 1, Math.max(0, roundIndex + delta));
+	if (next === roundIndex) return;
+	roundIndex = next;
+	updateRoundUI();
+	render();
 }
 
-// Buckets points into square cells so a circle only looks at nearby points.
-const CELL = 4;
-const CELLS = Math.ceil(101 / CELL);
+function updateRoundUI() {
+	const k = roundIndex + 1;
+	const last = roundIndex === rounds.length - 1;
+	document.getElementById("roundLabel").textContent =
+		`Round ${k} of ${rounds.length}`;
+	document.getElementById("roundPrev").disabled = roundIndex === 0;
+	document.getElementById("roundNext").disabled = last;
+	const play = document.getElementById("roundPlay");
+	play.textContent = playTimer ? "Pause" : last ? "Replay" : "Play";
+	play.setAttribute("aria-pressed", String(Boolean(playTimer)));
 
-function buildPointGrid() {
-	const grid = Array.from({ length: CELLS * CELLS }, () => []);
-	for (const p of points) {
-		grid[Math.floor(p.y / CELL) * CELLS + Math.floor(p.x / CELL)].push(p);
+	const left = rounds[roundIndex].remaining.length;
+	const taken = points.filter((p) => p.color === k).length;
+	setHint(
+		`${left} ${left === 1 ? "point" : "points"} left. ` +
+			`${taken} ${taken === 1 ? "gets" : "get"} color ${k}.`
+	);
+}
+
+function togglePlay() {
+	if (playTimer) {
+		stopPlay();
+		updateRoundUI();
+		return;
 	}
-	return grid;
-}
-
-// Returns how often the highest color inside the circle occurs (0 if empty).
-function highestColorCount(grid, center, radius) {
-	const clamp = (v) => Math.min(CELLS - 1, Math.max(0, Math.floor(v / CELL)));
-	const r2 = radius * radius;
-	let best = 0;
-	let count = 0;
-	for (let cy = clamp(center.y - radius); cy <= clamp(center.y + radius); cy++) {
-		for (let cx = clamp(center.x - radius); cx <= clamp(center.x + radius); cx++) {
-			for (const p of grid[cy * CELLS + cx]) {
-				const dx = p.x - center.x;
-				const dy = p.y - center.y;
-				if (dx * dx + dy * dy > r2) continue;
-				if (p.color > best) {
-					best = p.color;
-					count = 1;
-				} else if (p.color === best) {
-					count++;
-				}
-			}
-		}
+	if (roundIndex === rounds.length - 1) {
+		roundIndex = 0;
+		render();
 	}
-	return count;
+	playTimer = setInterval(() => {
+		stepRound(1);
+		if (roundIndex === rounds.length - 1) {
+			stopPlay();
+			updateRoundUI();
+		}
+	}, PLAY_INTERVAL);
+	updateRoundUI();
 }
 
-// Checks random circles in short time slices so the page stays responsive.
-// Radii are biased toward small circles, which hold few points and are the
-// likeliest place for a conflict.
-function testCircles() {
-	const run = ++testRun;
-	const button = document.getElementById("testButton");
-	button.disabled = true;
-	setTestResult(["Testing..."]);
-	const grid = buildPointGrid();
-	let done = 0;
-	let conflicts = 0;
-	let firstConflict = null;
-
-	const chunk = () => {
-		if (run !== testRun) return; // points changed mid-test
-		// Work for about one frame, then yield so the page can repaint.
-		const deadline = performance.now() + 14;
-		for (; done < TEST_CIRCLES && performance.now() < deadline; done++) {
-			const center = { x: Math.random() * 110 - 5, y: Math.random() * 110 - 5 };
-			const radius = 60 * Math.random() ** 2;
-			if (highestColorCount(grid, center, radius) > 1) {
-				conflicts++;
-				firstConflict ??= { center, radius, highest: null };
-			}
-		}
-		if (done < TEST_CIRCLES) {
-			const strong = document.createElement("strong");
-			strong.textContent = done.toLocaleString("en-US");
-			setTestResult(["Testing... ", strong, " circles checked"]);
-			setTimeout(chunk, 0);
-			return;
-		}
-		const strong = document.createElement("strong");
-		strong.textContent = `${conflicts} ${conflicts === 1 ? "conflict" : "conflicts"}`;
-		setTestResult(
-			[`Checked ${TEST_CIRCLES.toLocaleString("en-US")} circles: `, strong, "."],
-			conflicts > 0
-		);
-		button.disabled = false;
-		if (firstConflict) {
-			// Show the first failing circle so it can be inspected.
-			if (mode !== "circle") setMode("circle");
-			circle = firstConflict;
-			measureCircle(true);
-			render();
-		}
-	};
-	chunk();
+function stopPlay() {
+	clearInterval(playTimer);
+	playTimer = null;
 }
+
+// Arrow keys step through rounds (instant, no animation).
+document.addEventListener("keydown", (event) => {
+	const typing = event.target instanceof Element && event.target.closest("input, textarea");
+	if (mode !== "rounds" || typing) return;
+	if (event.key === "ArrowLeft") stepRound(-1);
+	else if (event.key === "ArrowRight") stepRound(1);
+	else return;
+	event.preventDefault();
+});
 
 // --- Hover: link table rows and canvas points ---
 function setHover(index, scrollRow = false) {
@@ -666,12 +687,11 @@ function handleDraw() {
 }
 
 function handleColoring() {
-	const coloredPoints = generateConflictFreeColoring(points);
+	rounds = [];
+	const coloredPoints = generateConflictFreeColoring(points, rounds);
 	coloredPoints.forEach((p, i) => {
 		points[i].color = p.color;
 	});
-	testRun++;
-	setTestResult(null);
 	updateJsonViewer();
 	updateToolAvailability();
 	const uniqueColors = new Set(points.map((p) => p.color));
@@ -717,7 +737,8 @@ window.handleColoring = handleColoring;
 window.setMode = setMode;
 window.toggleTriangulation = toggleTriangulation;
 window.clearPoints = clearPoints;
-window.testCircles = testCircles;
+window.stepRound = stepRound;
+window.togglePlay = togglePlay;
 
 const pointCountInput = document.getElementById("pointCount");
 pointCountInput.max = MAX_POINTS;
@@ -818,20 +839,35 @@ function getMostCommonColor(coloring) {
 // Delaunay graph, give it the next color, and remove it. Any disc with 2+
 // remaining points contains a Delaunay edge, so the highest color inside any
 // disc is unique.
-function generateConflictFreeColoring(initialPoints) {
+//
+// If `rounds` is an array, one entry per color is pushed onto it: the original
+// indices of the points still in play and the Delaunay edges between them.
+function generateConflictFreeColoring(initialPoints, rounds) {
 	let remaining = initialPoints.slice();
 	let indices = remaining.map((_, i) => i);
 	const CF = {}; // final mapping i -> color
 	let curColor = 1;
 
+	const record = (graph, idx) => {
+		if (!rounds) return;
+		const edges = [];
+		graph.forEach((neighbors, u) => {
+			for (const v of neighbors) if (u < v) edges.push([idx[u], idx[v]]);
+		});
+		rounds.push({ remaining: idx.slice(), edges });
+	};
+
 	while (remaining.length > 0) {
 		if (remaining.length < 4) {
+			// Too few points to thin out; each one gets its own color.
 			for (let i = 0; i < remaining.length; i++) {
+				if (rounds) record(getGraph(remaining.slice(i)), indices.slice(i));
 				CF[indices[i]] = curColor++;
 			}
 			break;
 		}
 		const G = getGraph(remaining);
+		record(G, indices);
 		const coloring = greedyColor(G);
 		const keepColor = getMostCommonColor(coloring);
 
