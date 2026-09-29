@@ -2,80 +2,167 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<title>Random Points with Circle Drawing</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="dark" />
+		<title>Conflict-Free Coloring</title>
+		<meta
+			name="description"
+			content="Interactive demo: color random points so every disc containing any of them holds a color that appears exactly once."
+		/>
+		<meta name="theme-color" content="#0b0c0f" />
+		<meta property="og:type" content="website" />
+		<meta property="og:title" content="Conflict-Free Coloring" />
+		<meta
+			property="og:description"
+			content="Color random points so every disc containing any of them holds a color that appears exactly once. Draw circles to test it."
+		/>
+		<meta
+			property="og:url"
+			content="https://nirkem.github.io/Conflict-free-coloring/"
+		/>
+		<meta
+			property="og:image"
+			content="https://nirkem.github.io/Conflict-free-coloring/og-image.png"
+		/>
+		<meta name="twitter:card" content="summary_large_image" />
+		<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+		<link
+			rel="preload"
+			href="fonts/geist-latin.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin
+		/>
 		<link rel="stylesheet" href="styles.css" />
 	</head>
 	<body>
-		<header>
+		<header class="topbar">
 			<h1>Conflict-Free Coloring</h1>
+			<a
+				class="topbar-link"
+				href="https://github.com/nirkem/Conflict-free-coloring"
+				target="_blank"
+				rel="noopener"
+				>Source on GitHub</a
+			>
 		</header>
-		<div class="container">
-			<!-- Left side: Canvas -->
-			<div class="left-panel">
-				<canvas id="canvas" width="600" height="600"></canvas>
-			</div>
 
-			<!-- Right side: Controls -->
-			<div class="right-panel">
-				<!-- Top: Choose number of points -->
-				<div class="top-controls">
-					<div class="input-row">
-						<h2>Insert Number of Points:</h2>
+		<main class="layout">
+			<!-- Canvas -->
+			<section class="stage">
+				<div class="canvas-frame">
+					<canvas
+						id="canvas"
+						width="1200"
+						height="1200"
+						aria-label="Points canvas"
+					></canvas>
+					<p id="canvasHint" class="canvas-hint is-visible">
+						Enter a number of points to begin
+					</p>
+				</div>
+			</section>
+
+			<!-- Controls -->
+			<aside class="panel">
+				<div class="intro" style="--i: 0">
+					<p>
+						Color points so that every disc containing any of them also holds
+						a color that appears exactly once inside it.
+					</p>
+					<details class="how">
+						<summary>How it works</summary>
+						<ol class="how-body">
+							<li>Draw random points, then generate a coloring.</li>
+							<li>
+								Each round, the algorithm picks points that are not neighbors in
+								the Delaunay triangulation and gives them the next color. Higher
+								colors come from later rounds.
+							</li>
+							<li>
+								In any circle, the highest color appears exactly once. Draw one
+								to check.
+							</li>
+							<li>The number of colors grows roughly like log n.</li>
+						</ol>
+					</details>
+				</div>
+
+				<section class="group" style="--i: 1">
+					<label for="pointCount">Number of points</label>
+					<div class="field-row">
 						<input
 							type="number"
 							id="pointCount"
 							min="1"
-							placeholder="1, 2, 3, ..."
+							inputmode="numeric"
+							placeholder="e.g. 200"
+							aria-describedby="pointHelp"
 						/>
+						<button class="btn btn-neutral" onclick="handleDraw()">
+							Draw points
+						</button>
 					</div>
-					<button onclick="handleDraw()">Draw Points</button>
-				</div>
+					<p id="pointHelp" class="helper">Between 1 and 9801.</p>
+				</section>
 
-				<!-- JSON Viewer -->
-				<div id="jsonViewer" class="json-viewer">
-					<table>
-						<thead>
-							<tr>
-								<th>#</th>
-								<th>X</th>
-								<th>Y</th>
-								<th>Color</th>
-							</tr>
-						</thead>
-						<tbody id="pointsTableBody">
-							<!-- Points will be dynamically added here -->
-						</tbody>
-					</table>
-				</div>
-
-				<!-- Generate conflict-free coloring -->
-				<div class="bottom-controls">
+				<section class="group" style="--i: 2">
 					<button
 						id="generateColoringButton"
+						class="btn btn-primary"
 						onclick="handleColoring()"
 						disabled
 					>
-						Generate conflict-free coloring
+						Generate coloring
 					</button>
-					<div class="color-count">
-						<label for="colorCountOutput">Number of Colors:</label>
-						<output id="colorCountOutput">0</output>
-					</div>
-				</div>
+					<p id="coloringSummary" class="summary" aria-live="polite" hidden></p>
 
-				<!-- Circle Output and Button -->
-				<div class="circle-controls">
-					<button id="drawCircleButton" onclick="toggleCircleMode()" disabled>
-						Draw Circle (Off)
-					</button>
-					<div class="color-count">
-						<label for="uniqueColorOutput">Unique color inside circle:</label>
-						<output id="uniqueColorOutput">N/A</output>
+					<div class="stats">
+						<div class="stat">
+							<span class="stat-label">Colors used</span>
+							<output id="colorCountOutput" class="stat-value">0</output>
+						</div>
+						<div class="stat">
+							<span class="stat-label">Unique in circle</span>
+							<span class="stat-value-row">
+								<span id="uniqueSwatch" class="swatch" hidden></span>
+								<output id="uniqueColorOutput" class="stat-value">-</output>
+							</span>
+						</div>
 					</div>
-				</div>
-			</div>
-		</div>
-		<script src="https://unpkg.com/delaunator@5.0.0/delaunator.min.js"></script>
+					<p id="circleNote" class="note" hidden></p>
+
+					<button
+						id="drawCircleButton"
+						class="btn btn-toggle"
+						onclick="toggleCircleMode()"
+						aria-pressed="false"
+						disabled
+					>
+						Draw circle
+					</button>
+				</section>
+
+				<section class="group table-group" style="--i: 3">
+					<div class="table-scroll">
+						<table>
+							<thead>
+								<tr>
+									<th>#</th>
+									<th>X</th>
+									<th>Y</th>
+									<th>Color</th>
+								</tr>
+							</thead>
+							<tbody id="pointsTableBody"></tbody>
+						</table>
+						<p id="tableEmpty" class="table-empty">No points yet.</p>
+					</div>
+				</section>
+			</aside>
+		</main>
+
+		<script src="vendor/delaunator.min.js"></script>
 		<script src="script.js"></script>
 	</body>
 </html>

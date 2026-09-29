@@ -1,241 +1,590 @@
-/* Global reset */
+/* --- Fonts (self-hosted, SIL Open Font License) --- */
+@font-face {
+	font-family: "Geist";
+	src: url("fonts/geist-latin.woff2") format("woff2");
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Geist Mono";
+	src: url("fonts/geist-mono-latin.woff2") format("woff2");
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* --- Tokens --- */
+:root {
+	color-scheme: dark;
+
+	--bg: #0b0c0f;
+	--surface: #111317;
+	--surface-2: #181b21;
+	--surface-3: #20242b;
+	--line: rgba(255, 255, 255, 0.07);
+	--line-strong: rgba(255, 255, 255, 0.13);
+
+	--text: #ececef;
+	--text-muted: #9ca1ab;
+	--text-faint: #7d828c;
+
+	--accent: #f2b544;
+	--accent-hover: #f6c465;
+	--accent-ink: #1c1405;
+	--accent-soft: rgba(242, 181, 68, 0.12);
+	--danger: #f27272;
+
+	/* Canvas drawing colors (read by script.js) */
+	--canvas-grid: rgba(255, 255, 255, 0.055);
+	--point-uncolored: #c6c9d1;
+
+	--radius: 10px;
+	--font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
+
+	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* --- Base --- */
+* {
+	box-sizing: border-box;
+}
+
 html,
 body {
-	height: 100%; /* Ensure full height */
-	margin: 0; /* Remove default margin */
-	padding: 0; /* Remove default padding */
-	overflow: hidden; /* Prevent scrolling */
-}
-
-* {
-	box-sizing: border-box; /* Include padding and borders in dimensions */
-}
-
-/* General container layout */
-.container {
-	display: flex;
-	height: calc(100vh - 60px); /* Subtract header height */
-	overflow: hidden; /* Prevent scrolling */
-}
-
-/* Header */
-header {
-	text-align: center;
-	height: 60px; /* Fixed height */
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	background-color: #ffffff; /* Optional: Add a background color */
-	border-bottom: 1px solid #ccc; /* Optional: Add a bottom border */
-}
-
-header h1 {
-	font-size: 36px; /* Large font size */
-	font-weight: bold; /* Bold text */
-	color: #000000; /* Black color */
-	font-family: "Georgia", "Times New Roman", serif; /* Elegant font */
-	margin: 0; /* Remove default margin */
-}
-
-/* Left panel: Canvas */
-.left-panel {
-	flex: 2; /* Take 2/3 of the width */
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	background-color: #f9f9f9;
-	height: 100%; /* Ensure it fills the container */
-}
-
-/* Right panel: Controls */
-.right-panel {
-	flex: 1; /* Take 1/3 of the width */
-	display: flex;
-	flex-direction: column;
-	padding: 20px;
-	background-color: #ffffff;
-	border-left: 1px solid #ccc;
-	overflow-y: auto; /* Allow scrolling only within the right panel if needed */
-	height: 100%; /* Ensure it fills the container */
-}
-
-/* Top controls: Number of points */
-.top-controls {
-	margin-bottom: 20px;
-	display: flex;
-	flex-direction: column;
-	align-items: center; /* Center the button */
-}
-
-.input-row {
-	display: flex;
-	align-items: center; /* Align input and headline vertically */
-	justify-content: center; /* Center the row horizontally */
-	width: 100%; /* Ensure the row spans the full width */
-	margin-bottom: 10px; /* Add spacing below the row */
-}
-
-.input-row h2 {
 	margin: 0;
-	margin-right: 10px; /* Add spacing between the headline and input */
-	font-size: 20px; /* Adjust font size if needed */
+	height: 100%;
 }
 
-.input-row input {
-	flex: 1; /* Allow the input to grow and fill available space */
-	padding: 5px;
-	font-size: 16px;
-}
-
-.top-controls button {
-	width: 100%; /* Make the button span the full width of the row above */
-	padding: 10px;
-	font-size: 16px;
-	background-color: #007bff;
-	color: #ffffff;
-	border: none;
-	border-radius: 5px;
-	cursor: pointer;
-	transition: background-color 0.3s ease;
-}
-
-.top-controls button:hover {
-	background-color: #0056b3;
-}
-
-/* JSON Viewer */
-.json-viewer {
-	margin-bottom: 20px;
-	padding: 10px;
-	background-color: #f4f4f4;
-	border: 1px solid #ccc;
-	max-height: 200px; /* Limit height to avoid overflow */
-	overflow-y: auto; /* Add scrolling if content exceeds height */
-	font-family: Arial, sans-serif;
+body {
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font-sans);
 	font-size: 14px;
-}
-
-.json-viewer table {
-	width: 100%;
-	border-collapse: collapse;
-}
-
-.json-viewer th,
-.json-viewer td {
-	border: 1px solid #ccc;
-	padding: 8px;
-	text-align: center;
-}
-
-.json-viewer th {
-	background-color: #007bff;
-	color: white;
-	font-weight: bold;
-}
-
-.json-viewer tbody tr:nth-child(even) {
-	background-color: #f9f9f9;
-}
-
-/* Bottom controls: Generate coloring */
-.bottom-controls {
-	margin-bottom: 20px;
-}
-
-.bottom-controls button {
-	margin-top: 10px; /* Add spacing above the button */
-}
-
-/* Shared button styling */
-button {
-	width: 100%; /* Make the button span the full width of its container */
-	padding: 10px;
-	font-size: 16px;
-	background-color: #007bff;
-	color: #ffffff;
-	border: none;
-	border-radius: 5px;
-	cursor: pointer;
-	transition: background-color 0.3s ease;
-}
-
-button:hover {
-	background-color: #0056b3;
-}
-
-button:disabled {
-	background-color: #cccccc; /* Gray background for disabled button */
-	cursor: not-allowed; /* Show "not-allowed" cursor */
-	color: #666666; /* Dimmed text color */
-}
-
-/* Circle controls */
-.circle-controls {
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
 	display: flex;
 	flex-direction: column;
-	align-items: flex-start;
-	width: 100%;
 }
 
-.circle-controls label {
-	margin-bottom: 5px;
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
 }
 
-.circle-controls input {
-	margin-bottom: 10px;
-	padding: 5px;
-	width: 100%;
-}
-
-.circle-controls button {
-	padding: 5px 10px;
-	width: 100%;
-}
-
-/* Circle output */
-.circle-output {
+/* --- Top bar --- */
+.topbar {
+	flex: none;
+	height: 56px;
+	padding: 0 24px;
 	display: flex;
-	align-items: center; /* Align label and output vertically */
-	gap: 10px; /* Add spacing between the label and output */
-	margin-top: 10px; /* Add spacing above the section */
+	align-items: center;
+	justify-content: space-between;
+	border-bottom: 1px solid var(--line);
 }
 
-.circle-output label {
+.topbar h1 {
+	margin: 0;
 	font-size: 16px;
-	font-weight: bold;
-	color: #333; /* Same color as "Number of Colors" label */
+	font-weight: 600;
+	letter-spacing: -0.01em;
 }
 
-.circle-output input {
-	width: 50px; /* Adjust the width of the input field */
-	text-align: center; /* Center the text inside the input */
-	padding: 5px;
-	font-size: 14px;
+.topbar-link {
+	color: var(--text-muted);
+	text-decoration: none;
+	font-size: 13px;
+	transition: color 150ms ease;
 }
 
-.circle-output output {
-	font-size: 16px;
-	font-weight: bold;
-	color: #007bff; /* Blue color for the output */
+@media (hover: hover) and (pointer: fine) {
+	.topbar-link:hover {
+		color: var(--text);
+	}
 }
 
-/* Color count */
-.color-count {
+/* --- Layout --- */
+.layout {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 380px;
+}
+
+.stage {
+	min-width: 0;
+	min-height: 0;
+	padding: 24px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.canvas-frame {
+	position: relative;
+	width: min(100%, calc(100dvh - 56px - 48px));
+	max-width: 760px;
+	aspect-ratio: 1;
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	background: var(--surface);
+	overflow: hidden;
+}
+
+#canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+	touch-action: none; /* Let touch drags draw circles instead of scrolling */
+}
+
+#canvas.circle-mode {
+	cursor: crosshair;
+}
+
+.canvas-hint {
+	position: absolute;
+	left: 50%;
+	bottom: 16px;
+	margin: 0;
+	padding: 6px 12px;
+	border: 1px solid var(--line-strong);
+	border-radius: 999px;
+	background: rgba(11, 12, 15, 0.8);
+	color: var(--text-muted);
+	font-size: 13px;
+	white-space: nowrap;
+	pointer-events: none;
+	opacity: 0;
+	transform: translate(-50%, 4px);
+	transition: opacity 200ms ease, transform 200ms var(--ease-out);
+}
+
+.canvas-hint.is-visible {
+	opacity: 1;
+	transform: translate(-50%, 0);
+}
+
+/* --- Panel --- */
+.panel {
+	min-height: 0;
+	overflow-y: auto; /* Scrolls only when "How it works" is open on short screens */
+	display: flex;
+	flex-direction: column;
+	border-left: 1px solid var(--line);
+	background: var(--surface);
+}
+
+.intro {
+	padding: 20px 24px;
+	color: var(--text-muted);
+}
+
+.intro p {
+	margin: 0;
+	max-width: 65ch;
+}
+
+/* --- How it works --- */
+.how {
 	margin-top: 10px;
+}
+
+.how summary {
+	width: fit-content;
+	color: var(--accent);
+	font-weight: 500;
+	cursor: pointer;
+	list-style: none;
 	display: flex;
-	align-items: center; /* Align label and output vertically */
-	justify-content: space-between; /* Push the output to the end of the line */
+	align-items: center;
+	gap: 6px;
+	border-radius: 4px;
+}
+
+.how summary::-webkit-details-marker {
+	display: none;
+}
+
+/* Chevron built from a bordered square, rotates when open */
+.how summary::after {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-right: 1.5px solid currentColor;
+	border-bottom: 1.5px solid currentColor;
+	transform: translateY(-2px) rotate(45deg);
+	transition: transform 200ms var(--ease-out);
+}
+
+.how[open] summary::after {
+	transform: translateY(1px) rotate(-135deg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.how summary:hover {
+		color: var(--accent-hover);
+	}
+}
+
+.how-body {
+	margin: 10px 0 0;
+	padding-left: 18px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	max-width: 65ch;
+}
+
+.how-body li::marker {
+	color: var(--text-faint);
+	font-family: var(--font-mono);
+	font-size: 12px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.how[open] .how-body {
+		animation: settle-in 220ms var(--ease-out);
+	}
+}
+
+.group {
+	padding: 20px 24px;
+	border-top: 1px solid var(--line);
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+label {
+	font-weight: 500;
+}
+
+.field-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 8px;
+}
+
+input[type="number"] {
 	width: 100%;
+	height: 40px;
+	padding: 0 12px;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius);
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font-mono);
+	font-size: 14px;
+	transition: border-color 150ms ease;
 }
 
-.color-count label {
-	font-size: 16px;
-	font-weight: bold;
-	color: #333; /* Same color as "Number of Colors" label */
+input[type="number"]::placeholder {
+	color: var(--text-faint);
 }
 
-.color-count output {
-	font-size: 16px;
-	font-weight: bold;
-	color: #007bff; /* Blue color for the output */
+input[type="number"]:focus-visible {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+input[aria-invalid="true"] {
+	border-color: var(--danger);
+}
+
+.helper {
+	margin: -4px 0 0;
+	color: var(--text-faint);
+	font-size: 13px;
+}
+
+.helper.is-error {
+	color: var(--danger);
+}
+
+/* --- Buttons --- */
+.btn {
+	height: 40px;
+	padding: 0 16px;
+	border: 1px solid transparent;
+	border-radius: var(--radius);
+	font: inherit;
+	font-weight: 500;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: background-color 150ms ease, border-color 150ms ease,
+		color 150ms ease, transform 160ms var(--ease-out);
+}
+
+.btn:active:not(:disabled) {
+	transform: scale(0.97);
+}
+
+.btn:disabled,
+.btn:disabled[aria-pressed] {
+	cursor: not-allowed;
+	background: var(--surface-2);
+	border-color: var(--line);
+	color: var(--text-faint);
+}
+
+.btn-primary {
+	background: var(--accent);
+	color: var(--accent-ink);
+}
+
+.btn-neutral {
+	background: var(--surface-3);
+	border-color: var(--line-strong);
+	color: var(--text);
+}
+
+.btn-toggle {
+	background: transparent;
+	border-color: var(--line-strong);
+	color: var(--text);
+}
+
+.btn-toggle[aria-pressed="true"] {
+	background: var(--accent-soft);
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.btn-primary:hover:not(:disabled) {
+		background: var(--accent-hover);
+	}
+
+	.btn-neutral:hover:not(:disabled),
+	.btn-toggle[aria-pressed="false"]:hover:not(:disabled) {
+		background: var(--surface-2);
+		border-color: rgba(255, 255, 255, 0.2);
+	}
+}
+
+/* --- Stats --- */
+.stats {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+
+.stat {
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	background: var(--bg);
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.stat-label {
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
+.stat-value-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.stat-value {
+	display: inline-block;
+	font-family: var(--font-mono);
+	font-size: 22px;
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: -0.02em;
+}
+
+.stat-value.conflict {
+	color: var(--danger);
+}
+
+.summary {
+	margin: 0;
+	color: var(--text);
+}
+
+.summary strong {
+	font-family: var(--font-mono);
+	font-weight: 500;
+	color: var(--accent);
+}
+
+.summary[hidden] {
+	display: none;
+}
+
+.note {
+	margin: -4px 0 0;
+	color: var(--danger);
+	font-size: 13px;
+}
+
+.note[hidden] {
+	display: none;
+}
+
+/* Color dots are always round; everything else uses --radius */
+.swatch {
+	flex: none;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.swatch[hidden] {
+	display: none;
+}
+
+/* --- Points table --- */
+.table-group {
+	flex: 1;
+	min-height: 140px;
+	padding-bottom: 0;
+}
+
+.table-scroll {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	margin: 0 -24px;
+	padding: 0 24px 20px;
+}
+
+table {
+	width: 100%;
+	table-layout: fixed;
+	border-collapse: collapse;
+	font-family: var(--font-mono);
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+
+th {
+	position: sticky;
+	top: 0;
+	padding: 8px 0;
+	background: var(--surface);
+	color: var(--text-muted);
+	font-family: var(--font-sans);
+	font-size: 12px;
+	font-weight: 500;
+	text-align: left;
+	border-bottom: 1px solid var(--line);
+}
+
+td {
+	padding: 6px 0;
+	color: var(--text);
+}
+
+th:nth-child(1) {
+	width: 22%;
+}
+
+th:nth-child(2),
+th:nth-child(3) {
+	width: 18%;
+}
+
+td:first-child {
+	color: var(--text-faint);
+}
+
+tbody tr.is-hovered td {
+	background: var(--surface-3);
+}
+
+.color-cell {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.table-empty {
+	margin: 16px 0 0;
+	color: var(--text-faint);
+}
+
+.table-empty[hidden] {
+	display: none;
+}
+
+/* --- Load-in: panel sections settle in once, staggered --- */
+@media (prefers-reduced-motion: no-preference) {
+	.panel > * {
+		animation: settle-in 420ms var(--ease-out) both;
+		animation-delay: calc(var(--i, 0) * 60ms);
+	}
+
+	.canvas-frame {
+		animation: settle-in 420ms var(--ease-out) both;
+	}
+}
+
+@keyframes settle-in {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.btn:active:not(:disabled) {
+		transform: none;
+	}
+
+	.canvas-hint {
+		transform: translate(-50%, 0);
+	}
+}
+
+/* --- Small screens: stack the canvas above the controls --- */
+@media (max-width: 900px) {
+	body {
+		height: auto;
+		min-height: 100dvh;
+	}
+
+	.topbar {
+		padding: 0 16px;
+	}
+
+	.layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.stage {
+		padding: 16px;
+	}
+
+	.canvas-frame {
+		width: 100%;
+	}
+
+	.panel {
+		border-left: none;
+		border-top: 1px solid var(--line);
+	}
+
+	.intro,
+	.group {
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.table-scroll {
+		max-height: 360px;
+		margin: 0 -16px;
+		padding: 0 16px 16px;
+	}
 }
